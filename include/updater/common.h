@@ -34,7 +34,7 @@ namespace updater {
 // 程序版本，同时用于 User-Agent。
 constexpr const wchar_t* kAppName = L"ShittimLogon Updater";
 constexpr const wchar_t* kAppVersion = L"1.0.0";
-constexpr const wchar_t* kDefaultUrl = L"http://tlwyuobr.hd-bkt.clouddn.com/ShittimLogon.zip";
+constexpr const wchar_t* kDefaultUrl = L"http://tlwyuoybr.hd-bkt.clouddn.com/ShittimLogon.zip";
 constexpr const wchar_t* kDefaultPayloadExe = L"install.exe";
 
 // 统一的进程退出码，便于脚本判断失败原因。
