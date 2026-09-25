@@ -2,8 +2,14 @@
 
 一个独立的 Windows C++ 更新器：**从指定地址下载压缩包 → 自动解压 → 运行压缩包中的 `install.exe`**。
 
-整个程序不依赖任何第三方库（下载用 WinHTTP，解压用内置的 DEFLATE 实现），编译产物是单个
-`.exe`，可直接分发。
+包含两个可独立分发的 `.exe`：
+
+- **`ShittimLogonUpdater.exe`**（客户端）—— 获取压缩包、解压、运行安装程序。
+- **`ShittimLogonSender.exe`**（发送端）—— 可选的 TCP 文件服务，让客户端在**没有 HTTP 服务**
+  的环境下点对点拉取文件。
+
+全部代码不依赖任何第三方库：HTTP 用 WinHTTP，解压用自研的 DEFLATE 实现，
+TCP 传输用 Winsock 加自定义应用层协议。
 
 ---
 
@@ -23,11 +29,73 @@ ShittimLogon 1.5.0 发布包，约 51.2 MB / 202 个条目，包内结构为
 
 ---
 
+## 通过原始 TCP 传输（可选通道）
+
+除了 HTTP，客户端还可以直接从自带的**发送端**拉取文件，适用于没有 Web 服务、
+只想两台机器点对点传包的场景。
+
+### 发送端
+
+```powershell
+# 把 D:\packages 目录开放给客户端拉取
+ShittimLogonSender.exe --root D:\packages
+
+# 输出
+# ShittimLogon 发送端 1.0.0
+# [19:19:02] 信息 服务已启动：0.0.0.0:9000，根目录 D:\packages
+# [19:19:02] 信息 等待客户端连接...（Ctrl+C 停止）
+```
+
+| 选项 | 说明 |
+| --- | --- |
+| `--root <目录>` | 要托管的目录，默认当前目录 |
+| `--port <端口>` | 监听端口，默认 `9000` |
+| `--bind <地址>` | 绑定地址，默认 `0.0.0.0`；填 `::` 监听 IPv6 |
+| `--once` | 完成一次传输后自动退出 |
+| `--io-timeout <秒>` | 单连接读写超时，默认 `120` |
+| `--log-file <路径>` | 同时写日志文件 |
+| `--quiet` / `--verbose` | 调整输出详略 |
+
+每个连接由独立线程处理，支持多客户端并发，单连接卡住不会阻塞其他人。
+
+### 客户端
+
+```powershell
+ShittimLogonUpdater.exe --url tcp://192.168.1.10:9000/ShittimLogon.zip
+```
+
+其余流程（解压、定位 `install.exe`、启动、清理）与 HTTP 模式完全一致，
+`--sha256`、`--elevate`、`--args`、`--keep` 等选项照常可用。
+
+### 协议
+
+自定义的 `SLU/1` 协议，全部为小端定长头，一次交互：
+
+```mermaid
+sequenceDiagram
+    participant C as 客户端
+    participant S as 发送端
+    C->>S: Request(24B) + 文件名(UTF-8)
+    S->>C: Header(24B) + 文件名 + [错误信息]
+    S->>C: 文件数据（payloadSize 字节）
+    S->>C: CRC32(4B)
+```
+
+- 长度、状态、文件名都在定长头里，接收方按声明长度精确读取，
+  不依赖“连接关闭”来判断结束。
+- 文件末尾追加**整段内容的 CRC32**，接收端边收边算并在结束时比对，
+  任何错位或截断都会被立即发现；服务端也无需预先扫描整个文件即可边读边算。
+- 服务端无法访问 `--root` 之外的内容：拒绝 `..`、绝对路径、盘符与 NTFS 数据流，
+  并用规范化后的绝对路径二次确认没有越出根目录。
+
+---
+
 ## 功能特性
 
 | 能力 | 说明 |
 | --- | --- |
-| 下载 | WinHTTP 实现，支持 HTTP/HTTPS、自动跟随 301/302/303/307/308、失败自动重试（指数退避）、断点重试、代理、超时控制 |
+| 下载 | WinHTTP 实现，支持 HTTP/HTTPS、自动跟随 301/302/303/307/308、失败自动重试（指数退避）、代理、超时控制 |
+| TCP 传输 | 内置发送端 + 自定义 `SLU/1` 协议，无需 HTTP 服务即可点对点传包；整段 CRC32 校验、多客户端并发 |
 | 进度 | 实时显示下载百分比、速度、剩余时间；解压显示文件计数 |
 | 校验 | 可选 SHA-256 完整性校验（基于 Windows CNG），摘要不匹配立即中止 |
 | 解压 | 自研 DEFLATE 解压器 + ZIP 解析，支持 stored/deflate、ZIP64、UTF-8 与 GBK 文件名 |
@@ -54,10 +122,11 @@ build.bat
 脚本会自动通过 `vswhere` 定位 Visual Studio、初始化编译环境，编译版本资源，并静态链接 CRT 输出：
 
 ```text
-build\ShittimLogonUpdater.exe
+build\ShittimLogonUpdater.exe    客户端（下载/解压/运行安装程序）
+build\ShittimLogonSender.exe     发送端（TCP 文件服务，按需分发）
 ```
 
-该文件可复制/移动到任意位置独立运行，目标机器无需安装 VC 运行时或任何依赖；在
+两者都可复制/移动到任意位置独立运行，目标机器无需安装 VC 运行时或任何依赖；在
 「文件属性 → 详细信息」中可查看产品名、版本与版权信息。
 
 ### 方式二：CMake
@@ -177,17 +246,21 @@ flowchart TD
 ├── CMakeLists.txt              构建配置
 ├── build.bat                   一键编译脚本（自动定位 VS 工具链）
 ├── res/
-│   └── version.rc              版本信息资源（文件属性页可见）
+│   ├── version.rc              客户端版本信息资源
+│   └── version-sender.rc       发送端版本信息资源
 ├── include/updater/
 │   ├── common.h                公共定义、默认地址、退出码
 │   ├── logger.h                日志与进度条
 │   ├── util.h                  编码、路径、文件系统、格式化
 │   ├── http_client.h           WinHTTP 下载
+│   ├── tcp_protocol.h          SLU/1 协议定义、套接字封装与收发辅助
+│   ├── tcp_client.h            客户端 TCP 传输
+│   ├── file_server.h           发送端文件服务
 │   ├── inflate.h               DEFLATE 解压与 CRC32
 │   ├── zip_extractor.h         ZIP 解析与安全解包
 │   ├── sha256.h                文件摘要（CNG）
 │   └── process_launcher.h      进程查找与启动
-└── src/                        对应实现
+└── src/                        对应实现（main / sender_main 为两个程序入口）
 ```
 
 ### 实现要点
@@ -200,7 +273,10 @@ flowchart TD
   的策略解码，兼顾现代工具与中文 Windows 压缩工具。
 - **路径净化**：拒绝 `..`、盘符、冒号（NTFS 数据流）、绝对路径，并把结尾空格与点截断，
   与 Windows 自身的文件名规则保持一致。
-- **自包含**：仅链接系统库 `winhttp` / `bcrypt` / `shell32` / `ole32` / `advapi32`，
+- **TCP 传输**（`tcp_protocol.h` / `tcp_client.cpp` / `file_server.cpp`）：自定义 `SLU/1` 协议，
+  24 字节定长头描述长度与状态，文件末尾追加整段 CRC32。接收方按声明长度精确读取，
+  不依赖连接关闭判断结束；服务端每个连接独立线程，且只允许访问根目录内的文件。
+- **自包含**：仅链接系统库 `winhttp` / `bcrypt` / `shell32` / `ole32` / `advapi32` / `ws2_32`，
   无第三方依赖，静态链接 CRT。
 
 ---
@@ -233,6 +309,22 @@ flowchart TD
 
 ---
 
+### 原始 TCP 传输通道
+
+在本机 `127.0.0.1:9100` 运行发送端实测：
+
+- 51.2 MB 真实包经 TCP 传输后 **SHA-256 与发送端完全一致**，解压出 201 个文件并正确定位
+  `install.exe`，全流程耗时 1.2 秒
+- 服务端吞吐 250–330 MB/s（本机回环下 51 MB 约 0.2 秒）
+- **并发 3 个客户端**同时拉取 51 MB：全部成功、哈希全部一致，总耗时 2.2 秒
+- 中文文件名（`中文测试.txt`）可正常请求与传输
+- 路径穿越：明文 `../secret.txt` 与 URL 编码 `%2e%2e%2fsecret.txt` 均被服务端拒绝
+- 请求不存在的文件返回明确的“文件不存在”（而非内部错误）
+- `--once` 模式完成一次传输后自动退出，后续连接被拒绝；端口未监听时给出明确错误
+- `--sha256` 摘要校验与 TCP 通道配合正常（正确返回 0，错误返回 7）
+
+---
+
 ## 已知限制
 
 - **`--elevate` 与自动 UAC 回退未经实测**：这两条路径会弹出 UAC 对话框需要人工点击，
@@ -240,6 +332,8 @@ flowchart TD
 - 解压时整个压缩包会读入内存，上限 2 GB（足够覆盖常规安装包）。
 - 加密（密码保护）的 ZIP 不支持，会明确报错。
 - 仅支持 stored 与 deflate 两种压缩方法；bzip2/lzma/ppmd 会明确报错而不是静默失败。
+- `tcp://` 模式不吃 HTTP 代理（`--proxy` 仅对 http 模式有效）；TCP 通道本身没有加密与认证，
+  建议只在可信内网使用，并配合 `--sha256` 校验来源。
 
 ---
 

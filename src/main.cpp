@@ -8,6 +8,7 @@
 #include "updater/logger.h"
 #include "updater/process_launcher.h"
 #include "updater/sha256.h"
+#include "updater/tcp_client.h"
 #include "updater/util.h"
 #include "updater/zip_extractor.h"
 
@@ -66,9 +67,9 @@ const wchar_t* kUsageTemplate =
     L"\n"
     L"用法：%s [选项]\n"
     L"\n"
-    L"下载选项\n"
-    L"  --url <地址>         压缩包地址（默认 %s）\n"
-    L"  --proxy <host:port>  通过指定 HTTP 代理下载\n"
+    L"获取压缩包\n"
+    L"  --url <地址>         压缩包地址，支持 http(s):// 与 tcp://（默认 %s）\n"
+    L"  --proxy <host:port>  通过指定代理下载（仅 http 模式有效）\n"
     L"  --timeout <秒>       单次网络操作超时，默认 30\n"
     L"  --retry <次数>       下载失败后的重试次数，默认 3\n"
     L"  --insecure           忽略 TLS 证书错误（不推荐）\n"
@@ -99,12 +100,13 @@ const wchar_t* kUsageTemplate =
     L"示例\n"
     L"  %s\n"
     L"  %s --elevate\n"
-    L"  %s --url https://example.com/ShittimLogon.zip --exe install.exe --keep\n";
+    L"  %s --url https://example.com/ShittimLogon.zip --exe install.exe --keep\n"
+    L"  %s --url tcp://192.168.1.10:9000/ShittimLogon.zip\n";
 
 void PrintUsage() {
     const std::wstring program = GetFileName(GetExecutablePath());
     WriteRawText(Format(kUsageTemplate, program.c_str(), kDefaultUrl, kDefaultPayloadExe,
-                        program.c_str(), program.c_str(), program.c_str()));
+                        program.c_str(), program.c_str(), program.c_str(), program.c_str()));
 }
 
 bool TakeValue(const std::vector<std::wstring>& arguments, std::size_t& index, bool hasInline,
@@ -298,6 +300,12 @@ std::wstring FileNameFromUrl(const std::wstring& url) {
     return name;
 }
 
+// 判断地址是否走原始 TCP 传输（tcp://host[:port]/name）。
+bool IsTcpUrl(const std::wstring& url) {
+    const std::wstring prefix = L"tcp://";
+    return url.size() > prefix.size() && ToLower(url.substr(0, prefix.size())) == prefix;
+}
+
 // 析构时删除临时工作目录（仅在满足清理条件时启用）。
 struct CleanupGuard {
     std::wstring path;
@@ -349,33 +357,20 @@ int RunUpdater(const Options& options) {
 
     LogDebug(Format(L"工作目录：%s", workDirectory.c_str()));
 
-    // ---- 2. 下载 --------------------------------------------------------
+    // ---- 2. 获取压缩包（HTTP 或原始 TCP）--------------------------------
     const std::wstring archivePath = JoinPath(workDirectory, FileNameFromUrl(options.url));
+    const bool tcpMode = IsTcpUrl(options.url);
     ProgressPrinter downloadProgress(options.showProgress && !options.quiet);
 
-    HttpDownloadOptions download;
-    download.url = options.url;
-    download.destinationPath = archivePath;
-    download.userAgent = std::wstring(kAppName) + L"/" + kAppVersion;
-    download.proxy = options.proxy;
-    download.timeoutMs = options.timeoutSeconds * 1000;
-    download.maxRetries = options.retries;
-    download.allowInsecureTls = options.insecureTls;
-    download.onProgress = [&](std::uint64_t received, std::uint64_t total,
-                             bool totalKnown) -> bool {
-        if (g_cancelled.load()) {
-            return false;
-        }
-        if (!downloadProgress.Enabled()) {
-            return true;
-        }
+    // 两种传输共用一套进度渲染，只是动词与总长度来源不同。
+    const auto renderProgress = [&](std::uint64_t received, std::uint64_t total) {
         const double seconds = static_cast<double>(downloadProgress.ElapsedMs()) / 1000.0;
         const double speed = seconds > 0.05 ? static_cast<double>(received) / seconds : 0.0;
 
         std::wstring text;
-        if (totalKnown && total > 0) {
-            text = Format(L"[下载] %5.1f%%  %s / %s", 100.0 * static_cast<double>(received) /
-                                                          static_cast<double>(total),
+        if (total > 0) {
+            text = Format(L"[%s] %5.1f%%  %s / %s", tcpMode ? L"接收" : L"下载",
+                          100.0 * static_cast<double>(received) / static_cast<double>(total),
                           FormatBytes(received).c_str(), FormatBytes(total).c_str());
             if (speed > 0.0) {
                 text += Format(L"  %s/s", FormatBytes(static_cast<std::uint64_t>(speed)).c_str());
@@ -384,28 +379,95 @@ int RunUpdater(const Options& options) {
                                        speed);
             }
         } else {
-            text = Format(L"[下载] %s", FormatBytes(received).c_str());
+            text = Format(L"[%s] %s", tcpMode ? L"接收" : L"下载", FormatBytes(received).c_str());
             if (speed > 0.0) {
                 text += Format(L"  %s/s", FormatBytes(static_cast<std::uint64_t>(speed)).c_str());
             }
         }
         downloadProgress.Update(text);
-        return true;
     };
 
-    const HttpDownloadResult downloadResult = HttpDownload(download);
-    downloadProgress.Finish();
+    std::uint64_t transferredBytes = 0;
 
-    if (!downloadResult.ok) {
-        if (downloadResult.cancelled || g_cancelled.load()) {
-            LogWarn(L"下载已被取消");
+    if (tcpMode) {
+        TcpDownloadOptions transfer;
+        std::string parseError;
+        if (!ParseTcpUrl(options.url, transfer, parseError)) {
+            LogError(Format(L"TCP 地址解析失败：%s", Utf8ToWide(parseError).c_str()));
+            return kExitBadArguments;
+        }
+        if (transfer.remoteName.empty()) {
+            LogError(L"tcp:// 地址中必须包含要请求的文件名");
+            LogError(L"例如：--url tcp://192.168.1.10:9000/ShittimLogon.zip");
+            return kExitBadArguments;
+        }
+
+        transfer.destinationPath = archivePath;
+        transfer.connectTimeoutMs = options.timeoutSeconds * 1000;
+        // 传输阶段允许更长的静默期：大文件在慢速链路上可能长时间持续传输。
+        transfer.ioTimeoutMs = std::max(60000, options.timeoutSeconds * 1000);
+        transfer.maxRetries = options.retries;
+        transfer.onProgress = [&](std::uint64_t received, std::uint64_t total) -> bool {
+            if (g_cancelled.load()) {
+                return false;
+            }
+            if (downloadProgress.Enabled()) {
+                renderProgress(received, total);
+            }
+            return true;
+        };
+
+        TcpDownloadResult transferResult;
+        const bool transferred = TcpDownload(transfer, transferResult);
+        downloadProgress.Finish();
+
+        if (!transferred) {
+            if (transferResult.cancelled || g_cancelled.load()) {
+                LogWarn(L"传输已被取消");
+                return kExitDownloadFailed;
+            }
+            LogError(Format(L"TCP 传输失败：%s", Utf8ToWide(transferResult.error).c_str()));
             return kExitDownloadFailed;
         }
-        LogError(Format(L"下载失败：%s", Utf8ToWide(downloadResult.error).c_str()));
-        return kExitDownloadFailed;
+        LogDebug(Format(L"TCP 传输的 CRC32 校验通过：%08X",
+                        static_cast<unsigned>(transferResult.crc32)));
+        transferredBytes = transferResult.bytesWritten;
+    } else {
+        HttpDownloadOptions download;
+        download.url = options.url;
+        download.destinationPath = archivePath;
+        download.userAgent = std::wstring(kAppName) + L"/" + kAppVersion;
+        download.proxy = options.proxy;
+        download.timeoutMs = options.timeoutSeconds * 1000;
+        download.maxRetries = options.retries;
+        download.allowInsecureTls = options.insecureTls;
+        download.onProgress = [&](std::uint64_t received, std::uint64_t total,
+                                 bool totalKnown) -> bool {
+            if (g_cancelled.load()) {
+                return false;
+            }
+            if (downloadProgress.Enabled()) {
+                renderProgress(received, totalKnown ? total : 0);
+            }
+            return true;
+        };
+
+        const HttpDownloadResult downloadResult = HttpDownload(download);
+        downloadProgress.Finish();
+
+        if (!downloadResult.ok) {
+            if (downloadResult.cancelled || g_cancelled.load()) {
+                LogWarn(L"下载已被取消");
+                return kExitDownloadFailed;
+            }
+            LogError(Format(L"下载失败：%s", Utf8ToWide(downloadResult.error).c_str()));
+            return kExitDownloadFailed;
+        }
+        transferredBytes = downloadResult.bytesWritten;
     }
-    if (downloadResult.bytesWritten == 0) {
-        LogError(L"下载内容为空，请检查地址是否正确");
+
+    if (transferredBytes == 0) {
+        LogError(L"收到的内容为空，请检查地址是否正确");
         return kExitDownloadFailed;
     }
 

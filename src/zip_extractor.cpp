@@ -446,9 +446,10 @@ bool ExtractZip(const ZipExtractOptions& options, ZipExtractStats& stats, std::s
             return false;
         }
 
-        FileHandle file(CreateFileW(targetPath.c_str(), GENERIC_WRITE, 0, nullptr,
-                                    options.overwrite ? CREATE_ALWAYS : CREATE_NEW,
-                                    FILE_ATTRIBUTE_NORMAL, nullptr));
+        FileHandle file(NormalizeFileHandle(
+            CreateFileW(targetPath.c_str(), GENERIC_WRITE, 0, nullptr,
+                        options.overwrite ? CREATE_ALWAYS : CREATE_NEW, FILE_ATTRIBUTE_NORMAL,
+                        nullptr)));
         if (!file) {
             const DWORD code = GetLastError();
             if (!options.overwrite && code == ERROR_FILE_EXISTS) {

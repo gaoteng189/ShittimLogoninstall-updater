@@ -37,31 +37,55 @@ echo [INFO] Compiling with MSVC (x64, release)...
 
 pushd "%ROOT%"
 
-echo [INFO] Compiling version resource...
+if not exist "%OUTDIR%\updater" mkdir "%OUTDIR%\updater"
+if not exist "%OUTDIR%\sender" mkdir "%OUTDIR%\sender"
+
+echo [INFO] Compiling version resources...
 rc /nologo /fo "%OUTDIR%\version.res" res\version.rc
 if errorlevel 1 (
-    echo [ERROR] Failed to compile the version resource.
+    echo [ERROR] Failed to compile res\version.rc.
+    popd
+    exit /b 1
+)
+rc /nologo /fo "%OUTDIR%\version-sender.res" res\version-sender.rc
+if errorlevel 1 (
+    echo [ERROR] Failed to compile res\version-sender.rc.
     popd
     exit /b 1
 )
 
-cl /nologo /std:c++17 /utf-8 /EHsc /W3 /O2 /MT /DNDEBUG ^
-   /DUNICODE /D_UNICODE /DWIN32_LEAN_AND_MEAN /DNOMINMAX ^
-   /I include ^
-   /Fo"%OUTDIR%\\" /Fe"%OUTDIR%\ShittimLogonUpdater.exe" ^
-   src\main.cpp src\http_client.cpp src\inflate.cpp src\zip_extractor.cpp ^
-   src\process_launcher.cpp src\sha256.cpp src\logger.cpp src\util.cpp ^
+set "CXX=/nologo /std:c++17 /utf-8 /EHsc /W3 /O2 /MT /DNDEBUG"
+set "CXX=%CXX% /DUNICODE /D_UNICODE /DWIN32_LEAN_AND_MEAN /DNOMINMAX /I include"
+
+echo [INFO] Building ShittimLogonUpdater.exe (client)...
+cl %CXX% /Fo"%OUTDIR%\updater\\" /Fe"%OUTDIR%\ShittimLogonUpdater.exe" ^
+   src\main.cpp src\http_client.cpp src\tcp_client.cpp src\inflate.cpp ^
+   src\zip_extractor.cpp src\process_launcher.cpp src\sha256.cpp ^
+   src\logger.cpp src\util.cpp ^
    "%OUTDIR%\version.res" ^
-   /link /SUBSYSTEM:CONSOLE winhttp.lib bcrypt.lib shell32.lib ole32.lib advapi32.lib
+   /link /SUBSYSTEM:CONSOLE winhttp.lib bcrypt.lib shell32.lib ole32.lib advapi32.lib ws2_32.lib
 set "RESULT=!errorlevel!"
+if not "!RESULT!"=="0" goto :failed
+
+echo [INFO] Building ShittimLogonSender.exe [server]...
+cl %CXX% /Fo"%OUTDIR%\sender\\" /Fe"%OUTDIR%\ShittimLogonSender.exe" ^
+   src\sender_main.cpp src\file_server.cpp src\inflate.cpp ^
+   src\logger.cpp src\util.cpp ^
+   "%OUTDIR%\version-sender.res" ^
+   /link /SUBSYSTEM:CONSOLE ws2_32.lib
+set "RESULT=!errorlevel!"
+if not "!RESULT!"=="0" goto :failed
+
 popd
 
-if not "!RESULT!"=="0" (
-    echo.
-    echo [ERROR] Build failed with exit code !RESULT!.
-    exit /b !RESULT!
-)
-
 echo.
-echo [OK] Build succeeded: %OUTDIR%\ShittimLogonUpdater.exe
+echo [OK] Build succeeded:
+echo      %OUTDIR%\ShittimLogonUpdater.exe  [client]
+echo      %OUTDIR%\ShittimLogonSender.exe   [server]
 exit /b 0
+
+:failed
+popd
+echo.
+echo [ERROR] Build failed with exit code !RESULT!.
+exit /b !RESULT!

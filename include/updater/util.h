@@ -16,6 +16,7 @@ std::string WideToMultiByte(const std::wstring& text, UINT codePage);
 // ---- 路径 ----------------------------------------------------------------
 std::wstring JoinPath(const std::wstring& base, const std::wstring& leaf);
 std::wstring GetTempDirectory();
+std::wstring GetCurrentDirectoryPath();
 std::wstring GetExecutablePath();
 std::wstring GetExecutableDirectory();
 std::wstring GetDirectoryName(const std::wstring& path);
@@ -26,6 +27,12 @@ bool EndsWithNoCase(const std::wstring& text, const std::wstring& suffix);
 std::wstring Trim(const std::wstring& text);
 
 // ---- 文件系统 ------------------------------------------------------------
+// CreateFileW 失败时返回 INVALID_HANDLE_VALUE（不是 nullptr），
+// 而 std::unique_ptr 之类的布尔判断只认 nullptr，因此必须先归一化再包装。
+inline void* NormalizeFileHandle(HANDLE handle) {
+    return handle == INVALID_HANDLE_VALUE ? nullptr : handle;
+}
+
 bool PathExists(const std::wstring& path);
 bool DirectoryExists(const std::wstring& path);
 bool FileExists(const std::wstring& path);

@@ -102,6 +102,22 @@ std::wstring GetTempDirectory() {
     return buffer.empty() ? L"." : buffer;
 }
 
+std::wstring GetCurrentDirectoryPath() {
+    std::wstring buffer(MAX_PATH, L'\0');
+    for (;;) {
+        const DWORD length =
+            GetCurrentDirectoryW(static_cast<DWORD>(buffer.size()), buffer.data());
+        if (length == 0) {
+            return std::wstring();
+        }
+        if (length < buffer.size()) {
+            buffer.resize(length);
+            return buffer;
+        }
+        buffer.resize(static_cast<std::size_t>(length) + 1);
+    }
+}
+
 std::wstring GetExecutablePath() {
     std::wstring buffer(MAX_PATH, L'\0');
     for (;;) {

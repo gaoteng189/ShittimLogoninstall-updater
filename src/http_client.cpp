@@ -283,8 +283,9 @@ RequestOutcome PerformRequest(const std::wstring& url, const HttpDownloadOptions
         bool totalKnown = false;
         const std::uint64_t total = QueryContentLength(request.get(), totalKnown);
 
-        FileHandle file(CreateFileW(options.destinationPath.c_str(), GENERIC_WRITE, 0, nullptr,
-                                    CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr));
+        FileHandle file(NormalizeFileHandle(
+            CreateFileW(options.destinationPath.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                        FILE_ATTRIBUTE_NORMAL, nullptr)));
         if (!file) {
             outcome.error = "无法创建目标文件 " + WideToUtf8(options.destinationPath) + "：" +
                             WideToUtf8(FormatSystemError(GetLastError()));
