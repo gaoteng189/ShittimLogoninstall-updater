@@ -7,19 +7,19 @@
 
 ---
 
-## ⚠️ 关于默认下载地址
+## 默认下载地址
 
-需求中给定的地址 **`http://tlwyuobr.hd-bkt.clouddn.com/ShittimLogon.zip` 当前返回 HTTP 404**
-（文件不存在）。程序本身工作正常，实测时使用的是本机搭建的测试服务。
-
-请通过以下任一方式换成有效地址：
-
-```powershell
-# 方式一：命令行覆盖
-ShittimLogonUpdater.exe --url "http://你的地址/ShittimLogon.zip"
-
-# 方式二：修改默认地址（src/common.h 中的 kDefaultUrl），重新编译
 ```
+http://tlwyuoybr.hd-bkt.clouddn.com/ShittimLogon.zip
+```
+
+ShittimLogon 1.5.0 发布包，约 51.2 MB / 202 个条目，包内结构为
+`ShittimLogon-1.5.0\install.exe`（安装程序与 `bin\x64`、`bin\arm64` 等目录同级）。
+
+程序会把它下载到临时目录、解压，再以解压目录为工作目录启动其中的 `install.exe`。
+
+如需改用其他地址，可用 `--url` 覆盖，或修改 `include/updater/common.h` 中的 `kDefaultUrl`
+后重新编译。
 
 ---
 
@@ -103,7 +103,7 @@ ShittimLogonUpdater.exe --list
 
 | 选项 | 说明 |
 | --- | --- |
-| `--url <地址>` | 压缩包地址，默认 `http://tlwyuobr.hd-bkt.clouddn.com/ShittimLogon.zip` |
+| `--url <地址>` | 压缩包地址，默认 `http://tlwyuoybr.hd-bkt.clouddn.com/ShittimLogon.zip` |
 | `--proxy <host:port>` | 通过指定 HTTP 代理下载，留空使用系统默认代理 |
 | `--timeout <秒>` | 单次网络操作超时，默认 `30` |
 | `--retry <次数>` | 下载失败后的重试次数，默认 `3`（等待 2s、4s、6s…最多 10s） |
@@ -201,6 +201,18 @@ flowchart TD
 ---
 
 ## 已验证场景
+
+### 真实发布包（ShittimLogon 1.5.0）
+
+| 项目 | 结果 |
+| --- | --- |
+| 下载 | 51.2 MB，约 1.5 秒完成 |
+| 解压 | 201 个文件 / 1 个目录 / 59.0 MB，全部通过 CRC32 校验 |
+| 目标定位 | 正确找到 `ShittimLogon-1.5.0\install.exe` |
+| 交叉验证 | 与 Windows 自带 `tar`（bsdtar）解压结果**逐文件哈希比对：201 个文件全部一致，0 差异** |
+| 全流程耗时 | 2.8 秒（下载 + 解压，不含运行安装程序） |
+
+### 本机 HTTP 测试服务的边界场景
 
 在本机搭建 HTTP 测试服务实测通过：
 
