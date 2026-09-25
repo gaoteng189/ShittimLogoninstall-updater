@@ -1,0 +1,19 @@
+# 构建产物
+build/
+out/
+*.exe
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.res
+
+# 编辑器 / IDE
+.vs/
+.vscode/
+CMakeSettings.json
+*.user
+
+# 日志与临时文件
+*.log
