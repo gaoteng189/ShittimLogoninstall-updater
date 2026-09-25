@@ -51,11 +51,14 @@ ShittimLogon 1.5.0 发布包，约 51.2 MB / 202 个条目，包内结构为
 build.bat
 ```
 
-脚本会自动通过 `vswhere` 定位 Visual Studio、初始化编译环境，并静态链接 CRT 输出：
+脚本会自动通过 `vswhere` 定位 Visual Studio、初始化编译环境，编译版本资源，并静态链接 CRT 输出：
 
 ```text
 build\ShittimLogonUpdater.exe
 ```
+
+该文件可复制/移动到任意位置独立运行，目标机器无需安装 VC 运行时或任何依赖；在
+「文件属性 → 详细信息」中可查看产品名、版本与版权信息。
 
 ### 方式二：CMake
 
@@ -173,6 +176,8 @@ flowchart TD
 ```text
 ├── CMakeLists.txt              构建配置
 ├── build.bat                   一键编译脚本（自动定位 VS 工具链）
+├── res/
+│   └── version.rc              版本信息资源（文件属性页可见）
 ├── include/updater/
 │   ├── common.h                公共定义、默认地址、退出码
 │   ├── logger.h                日志与进度条

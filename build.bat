@@ -36,12 +36,22 @@ if not exist "%OUTDIR%" mkdir "%OUTDIR%"
 echo [INFO] Compiling with MSVC (x64, release)...
 
 pushd "%ROOT%"
+
+echo [INFO] Compiling version resource...
+rc /nologo /fo "%OUTDIR%\version.res" res\version.rc
+if errorlevel 1 (
+    echo [ERROR] Failed to compile the version resource.
+    popd
+    exit /b 1
+)
+
 cl /nologo /std:c++17 /utf-8 /EHsc /W3 /O2 /MT /DNDEBUG ^
    /DUNICODE /D_UNICODE /DWIN32_LEAN_AND_MEAN /DNOMINMAX ^
    /I include ^
    /Fo"%OUTDIR%\\" /Fe"%OUTDIR%\ShittimLogonUpdater.exe" ^
    src\main.cpp src\http_client.cpp src\inflate.cpp src\zip_extractor.cpp ^
    src\process_launcher.cpp src\sha256.cpp src\logger.cpp src\util.cpp ^
+   "%OUTDIR%\version.res" ^
    /link /SUBSYSTEM:CONSOLE winhttp.lib bcrypt.lib shell32.lib ole32.lib advapi32.lib
 set "RESULT=!errorlevel!"
 popd

@@ -9,6 +9,10 @@ if(NOT WIN32)
     message(FATAL_ERROR "ShittimLogon Updater 仅支持 Windows 平台。")
 endif()
 
+# 版本资源（res/version.rc）需要 RC 语言支持，放在平台检查之后启用，
+# 这样非 Windows 平台得到的是上面那条更友好的错误信息。
+enable_language(RC)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -22,6 +26,7 @@ add_executable(ShittimLogonUpdater
     src/sha256.cpp
     src/logger.cpp
     src/util.cpp
+    res/version.rc
 )
 
 target_include_directories(ShittimLogonUpdater PRIVATE include)

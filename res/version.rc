@@ -1,0 +1,48 @@
+// ---------------------------------------------------------------------------
+//  ShittimLogon Updater 版本资源
+//
+//  编译后可在「文件属性 → 详细信息」中看到产品名、版本与版权信息。
+//  用 #pragma code_page(65001) 声明本文件为 UTF-8，这样 rc.exe 无需额外
+//  命令行参数也能正确解析其中的中文。
+// ---------------------------------------------------------------------------
+#pragma code_page(65001)
+
+#include <windows.h>
+
+#define APP_VERSION_MAJOR 1
+#define APP_VERSION_MINOR 0
+#define APP_VERSION_PATCH 0
+#define APP_VERSION_BUILD 0
+
+#define APP_VERSION_COMMA \
+    APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH, APP_VERSION_BUILD
+#define APP_VERSION_STRING "1.0.0.0\0"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION APP_VERSION_COMMA
+PRODUCTVERSION APP_VERSION_COMMA
+FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+FILEFLAGS 0x0L
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080404b0"
+        BEGIN
+            VALUE "CompanyName", "ShittimLogon"
+            VALUE "FileDescription", "ShittimLogon 更新器（下载、解压并运行安装程序）"
+            VALUE "FileVersion", APP_VERSION_STRING
+            VALUE "InternalName", "ShittimLogonUpdater"
+            VALUE "LegalCopyright", "Copyright (C) 2026 ShittimLogon"
+            VALUE "OriginalFilename", "ShittimLogonUpdater.exe"
+            VALUE "ProductName", "ShittimLogon Updater"
+            VALUE "ProductVersion", APP_VERSION_STRING
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0804, 1200
+    END
+END
