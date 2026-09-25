@@ -9,7 +9,7 @@
 
 ## 默认下载地址
 
-```
+```text
 http://tlwyuoybr.hd-bkt.clouddn.com/ShittimLogon.zip
 ```
 
@@ -53,7 +53,7 @@ build.bat
 
 脚本会自动通过 `vswhere` 定位 Visual Studio、初始化编译环境，并静态链接 CRT 输出：
 
-```
+```text
 build\ShittimLogonUpdater.exe
 ```
 
@@ -170,7 +170,7 @@ flowchart TD
 
 ## 项目结构
 
-```
+```text
 ├── CMakeLists.txt              构建配置
 ├── build.bat                   一键编译脚本（自动定位 VS 工具链）
 ├── include/updater/
