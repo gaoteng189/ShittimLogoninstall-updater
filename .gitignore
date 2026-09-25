@@ -18,3 +18,6 @@ CMakeSettings.json
 
 # 日志与临时文件
 *.log
+
+# 本机 Python 虚拟环境（由工具链自动生成，与项目构建无关）
+.venv/
