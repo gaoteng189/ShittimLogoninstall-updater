@@ -14,18 +14,16 @@ env:
 
 jobs:
   build:
-    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
-    # You can convert this to a matrix build if you need cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    runs-on: ubuntu-latest
+    # 本项目仅支持 Windows：源码直接使用 WinHTTP、BCrypt 与 Shell API，
+    # 且 CMakeLists.txt 在非 Windows 平台会主动报错退出。
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v4
 
     - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      # 固定 x64 生成器：项目依赖 Windows SDK 与 WinHTTP/BCrypt 等系统库。
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -A x64
 
     - name: Build
       # Build your program with the given configuration
@@ -33,7 +31,7 @@ jobs:
 
     - name: Test
       working-directory: ${{github.workspace}}/build
-      # Execute tests defined by the CMake configuration.
-      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
+      # 当前项目未定义任何测试，ctest 会报告无测试可用并以 0 退出。
+      # 后续如需加入单元测试，在这里注册即可自动执行。
       run: ctest -C ${{env.BUILD_TYPE}}
 
