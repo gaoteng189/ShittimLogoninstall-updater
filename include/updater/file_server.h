@@ -12,11 +12,14 @@ namespace updater {
 
 struct FileServerOptions {
     std::wstring rootDirectory;
+    // 客户端未指定文件名时提供的文件（相对于 rootDirectory）。
+    // 启动时会校验它确实存在，缺失则直接报错退出。
+    std::wstring defaultFileName;
     std::wstring bindAddress = L"0.0.0.0";
     std::uint16_t port = tcp::kDefaultPort;
-    bool singleShot = false;      // 处理完一个连接就退出（便于测试/一次性分发）
-    bool allowListing = false;    // 是否允许客户端查询文件列表
-    int ioTimeoutMs = 120000;     // 单连接的读写超时
+    bool singleShot = false;
+    bool allowListing = false;
+    int ioTimeoutMs = 120000;
 };
 
 // 阻塞运行直到 stopRequested 置位。返回 false 表示启动失败。

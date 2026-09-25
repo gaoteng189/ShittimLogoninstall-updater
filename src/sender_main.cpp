@@ -36,6 +36,7 @@ BOOL WINAPI ConsoleControlHandler(DWORD type) {
 
 struct Options {
     std::wstring rootDirectory;
+    std::wstring fileName = kDefaultPayloadArchive;
     std::wstring bindAddress = L"0.0.0.0";
     std::wstring logFile;
     std::uint16_t port = tcp::kDefaultPort;
@@ -51,7 +52,10 @@ const wchar_t* kUsageTemplate =
     L"\n"
     L"用法：%s [选项]\n"
     L"\n"
-    L"  --root <目录>       要托管的目录，默认当前目录\n"
+    L"默认行为：自动把本程序所在目录下的 %s 准备好，监听 %u 端口等待客户端拉取。\n"
+    L"\n"
+    L"  --file <文件名>     要分发的文件，默认 %s（相对 --root）\n"
+    L"  --root <目录>       文件所在目录，默认本程序所在目录\n"
     L"  --port <端口>       监听端口，默认 %u\n"
     L"  --bind <地址>       绑定地址，默认 0.0.0.0（填 :: 可监听 IPv6）\n"
     L"  --once              完成一次传输后自动退出\n"
@@ -62,16 +66,17 @@ const wchar_t* kUsageTemplate =
     L"  --verbose           输出调试信息\n"
     L"  -h, --help          显示本帮助\n"
     L"\n"
-    L"客户端调用方式：\n"
-    L"  ShittimLogonUpdater.exe --url tcp://<本机地址>:%u/<文件名>\n"
+    L"客户端调用方式（地址不带文件名时，服务端提供上面准备好的文件）：\n"
+    L"  ShittimLogonUpdater.exe --url tcp://<本机地址>:%u\n"
     L"\n"
     L"示例：\n"
-    L"  %s --root D:\\packages\n"
-    L"  %s --root . --port 9100 --once\n";
+    L"  %s\n"
+    L"  %s --port 9100 --once\n";
 
 void PrintUsage() {
     const std::wstring program = GetFileName(GetExecutablePath());
-    WriteRawText(Format(kUsageTemplate, program.c_str(), static_cast<unsigned>(tcp::kDefaultPort),
+    WriteRawText(Format(kUsageTemplate, program.c_str(), kDefaultPayloadArchive,
+                        static_cast<unsigned>(tcp::kDefaultPort), kDefaultPayloadArchive,
                         static_cast<unsigned>(tcp::kDefaultPort), program.c_str(),
                         program.c_str()));
 }
@@ -133,6 +138,10 @@ bool ParseOptions(const std::vector<std::wstring>& arguments, Options& options, 
             if (!takeValue(options.rootDirectory)) {
                 return false;
             }
+        } else if (key == L"--file") {
+            if (!takeValue(options.fileName)) {
+                return false;
+            }
         } else if (key == L"--bind") {
             if (!takeValue(options.bindAddress)) {
                 return false;
@@ -178,19 +187,22 @@ bool ParseOptions(const std::vector<std::wstring>& arguments, Options& options, 
 }
 
 int RunSender(Options options) {
+    // 默认分发本程序所在目录：把发送端和压缩包放在一起即可直接双击运行。
     if (options.rootDirectory.empty()) {
-        options.rootDirectory = GetCurrentDirectoryPath();
+        options.rootDirectory = GetExecutableDirectory();
         if (options.rootDirectory.empty()) {
             options.rootDirectory = L".";
         }
     }
 
     LogDebug(Format(L"根目录：%s", options.rootDirectory.c_str()));
+    LogDebug(Format(L"待分发文件：%s", options.fileName.c_str()));
     LogDebug(Format(L"绑定：%s:%u", options.bindAddress.c_str(),
                     static_cast<unsigned>(options.port)));
 
     FileServerOptions serverOptions;
     serverOptions.rootDirectory = options.rootDirectory;
+    serverOptions.defaultFileName = options.fileName;
     serverOptions.bindAddress = options.bindAddress;
     serverOptions.port = options.port;
     serverOptions.singleShot = options.singleShot;

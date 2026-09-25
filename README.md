@@ -13,56 +13,85 @@ TCP 传输用 Winsock 加自定义应用层协议。
 
 ---
 
-## 默认下载地址
+## 默认地址与部署方式
+
+**客户端默认从此地址拉取，不需要任何参数：**
 
 ```text
-http://tlwyuoybr.hd-bkt.clouddn.com/ShittimLogon.zip
+tcp://1344a5becd3e.ofalias.com:41792
 ```
 
-ShittimLogon 1.5.0 发布包，约 51.2 MB / 202 个条目，包内结构为
-`ShittimLogon-1.5.0\install.exe`（安装程序与 `bin\x64`、`bin\arm64` 等目录同级）。
+**发送端默认自动分发与自己同目录的 `ShittimLogon.zip`，监听 `50304`：**
 
-程序会把它下载到临时目录、解压，再以解压目录为工作目录启动其中的 `install.exe`。
+```text
+D:\dist\
+├── ShittimLogonSender.exe      双击运行即可，无需参数
+└── ShittimLogon.zip            自动识别为待分发文件
+```
 
-如需改用其他地址，可用 `--url` 覆盖，或修改 `include/updater/common.h` 中的 `kDefaultUrl`
-后重新编译。
+`41792` 是映射到内网 `50304` 的公网端口，实际链路：
+
+```mermaid
+flowchart LR
+    A["客户端<br/>tcp://…ofalias.com:41792"] -->|公网| B["端口映射<br/>41792"]
+    B -->|转发| C["发送端<br/>0.0.0.0:50304"]
+    C --> D["同目录的<br/>ShittimLogon.zip"]
+```
+
+客户端把包取回临时目录、解压，再以解压目录为工作目录启动其中的 `install.exe`。
+发布包约 51.2 MB / 202 个条目，包内结构为 `ShittimLogon-1.5.0\install.exe`
+（与 `bin\x64`、`bin\arm64` 等目录同级）。
+
+要换地址或换文件名：客户端用 `--url`，发送端用 `--file` / `--root` / `--port`。
 
 ---
 
-## 通过原始 TCP 传输（可选通道）
+## 通过原始 TCP 传输
 
-除了 HTTP，客户端还可以直接从自带的**发送端**拉取文件，适用于没有 Web 服务、
-只想两台机器点对点传包的场景。
+客户端与发送端之间使用自定义的 `SLU/1` 协议，不依赖任何 Web 服务，适合点对点分发。
+（HTTP/HTTPS 通道仍然保留，`--url` 写 `http(s)://` 即走 WinHTTP。）
 
 ### 发送端
 
-```powershell
-# 把 D:\packages 目录开放给客户端拉取
-ShittimLogonSender.exe --root D:\packages
+默认把**自己所在目录**下的 `ShittimLogon.zip` 准备为待分发文件，监听 `50304`：
 
-# 输出
+```powershell
+D:\dist> ShittimLogonSender.exe
+
 # ShittimLogon 发送端 1.0.0
-# [19:19:02] 信息 服务已启动：0.0.0.0:9000，根目录 D:\packages
-# [19:19:02] 信息 等待客户端连接...（Ctrl+C 停止）
+# [19:28:50] 信息 准备分发：D:\dist\ShittimLogon.zip（51.2 MB）
+# [19:28:50] 信息 服务已启动：0.0.0.0:50304，根目录 D:\dist
+# [19:28:50] 信息 等待客户端连接...（Ctrl+C 停止）
 ```
+
+启动时就会校验待分发文件确实存在，缺失则直接报错退出 —— 不会让客户端连上之后才发现
+拿不到东西。
 
 | 选项 | 说明 |
 | --- | --- |
-| `--root <目录>` | 要托管的目录，默认当前目录 |
-| `--port <端口>` | 监听端口，默认 `9000` |
+| `--file <文件名>` | 要分发的文件，默认 `ShittimLogon.zip`（相对 `--root`） |
+| `--root <目录>` | 文件所在目录，默认**本程序所在目录** |
+| `--port <端口>` | 监听端口，默认 `50304` |
 | `--bind <地址>` | 绑定地址，默认 `0.0.0.0`；填 `::` 监听 IPv6 |
 | `--once` | 完成一次传输后自动退出 |
 | `--io-timeout <秒>` | 单连接读写超时，默认 `120` |
 | `--log-file <路径>` | 同时写日志文件 |
 | `--quiet` / `--verbose` | 调整输出详略 |
 
-每个连接由独立线程处理，支持多客户端并发，单连接卡住不会阻塞其他人。
+每个连接由独立线程处理，支持多客户端并发，单个连接卡住不会阻塞其他人。
 
 ### 客户端
 
 ```powershell
-ShittimLogonUpdater.exe --url tcp://192.168.1.10:9000/ShittimLogon.zip
+# 不带文件名：由发送端提供它准备好的那个文件
+ShittimLogonUpdater.exe --url tcp://1344a5becd3e.ofalias.com:41792
+
+# 也可以显式指定要拉取的文件
+ShittimLogonUpdater.exe --url tcp://192.168.1.10:50304/ShittimLogon.zip
 ```
+
+地址不带文件名时，落盘名以**服务端返回**的文件名为准；客户端会对该名字做净化
+（只取最后一段、过滤非法字符），避免服务端借文件名把内容写到目标目录之外。
 
 其余流程（解压、定位 `install.exe`、启动、清理）与 HTTP 模式完全一致，
 `--sha256`、`--elevate`、`--args`、`--keep` 等选项照常可用。
@@ -175,7 +204,7 @@ ShittimLogonUpdater.exe --list
 
 | 选项 | 说明 |
 | --- | --- |
-| `--url <地址>` | 压缩包地址，默认 `http://tlwyuoybr.hd-bkt.clouddn.com/ShittimLogon.zip` |
+| `--url <地址>` | 拉取地址，默认 `tcp://1344a5becd3e.ofalias.com:41792`（写 `http(s)://` 则走 WinHTTP） |
 | `--proxy <host:port>` | 通过指定 HTTP 代理下载，留空使用系统默认代理 |
 | `--timeout <秒>` | 单次网络操作超时，默认 `30` |
 | `--retry <次数>` | 下载失败后的重试次数，默认 `3`（等待 2s、4s、6s…最多 10s） |
@@ -308,6 +337,16 @@ flowchart TD
 - `--no-wait`、`--work-dir`、`--list`、`--log-file`、`--quiet`、`--verbose`
 
 ---
+
+### 默认部署方式（发送端与压缩包同目录）
+
+模拟真实部署：把 `ShittimLogonSender.exe` 与 `ShittimLogon.zip` 放进同一目录，
+**不带任何参数**、且工作目录故意设为别处启动发送端：
+
+- 正确识别为 exe 所在目录（而非当前工作目录），自动找到同目录的压缩包
+- 启动即输出 `准备分发：…\ShittimLogon.zip（51.2 MB）`，监听 `0.0.0.0:50304`
+- 客户端用不带文件名的 `tcp://127.0.0.1:50304` 成功拉取，落盘名取自服务端返回
+- 传输后 SHA-256 与源文件完全一致，解压 201 个文件并定位到 `install.exe`，全流程 1.2 秒
 
 ### 原始 TCP 传输通道
 

@@ -13,8 +13,12 @@ namespace updater {
 struct TcpDownloadOptions {
     std::wstring host;
     std::uint16_t port = tcp::kDefaultPort;
-    std::wstring remoteName;  // 相对服务端根目录的文件名（可含子目录）
-    std::wstring destinationPath;
+    // 要请求的文件名；留空表示请求发送端准备好的默认文件。
+    std::wstring remoteName;
+    // 本地保存目录。实际文件名优先采用服务端返回的名字，
+    // 因此像 tcp://host:port 这样不带文件名的地址也能正确落盘。
+    std::wstring destinationDirectory;
+    std::wstring preferredFileName;  // 服务端未返回文件名时的回退值
     int connectTimeoutMs = 10000;
     int ioTimeoutMs = 60000;
     int maxRetries = 3;
@@ -28,6 +32,8 @@ struct TcpDownloadResult {
     bool retryable = true;
     std::uint64_t bytesWritten = 0;
     std::uint32_t crc32 = 0;
+    std::wstring servedName;  // 服务端返回的文件名
+    std::wstring savedPath;   // 实际落盘的完整路径
     std::string error;
 };
 

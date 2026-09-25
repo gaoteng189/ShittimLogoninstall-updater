@@ -358,8 +358,11 @@ int RunUpdater(const Options& options) {
     LogDebug(Format(L"工作目录：%s", workDirectory.c_str()));
 
     // ---- 2. 获取压缩包（HTTP 或原始 TCP）--------------------------------
-    const std::wstring archivePath = JoinPath(workDirectory, FileNameFromUrl(options.url));
     const bool tcpMode = IsTcpUrl(options.url);
+    // HTTP 模式的本地文件名由 URL 决定；TCP 模式由服务端返回，
+    // 因此先留空，传输成功后用实际落盘路径回填。
+    std::wstring archivePath =
+        tcpMode ? std::wstring() : JoinPath(workDirectory, FileNameFromUrl(options.url));
     ProgressPrinter downloadProgress(options.showProgress && !options.quiet);
 
     // 两种传输共用一套进度渲染，只是动词与总长度来源不同。
@@ -396,13 +399,9 @@ int RunUpdater(const Options& options) {
             LogError(Format(L"TCP 地址解析失败：%s", Utf8ToWide(parseError).c_str()));
             return kExitBadArguments;
         }
-        if (transfer.remoteName.empty()) {
-            LogError(L"tcp:// 地址中必须包含要请求的文件名");
-            LogError(L"例如：--url tcp://192.168.1.10:9000/ShittimLogon.zip");
-            return kExitBadArguments;
-        }
-
-        transfer.destinationPath = archivePath;
+        // 地址不带文件名（如 tcp://host:port）时，由发送端提供它准备好的默认文件。
+        transfer.destinationDirectory = workDirectory;
+        transfer.preferredFileName = kDefaultPayloadArchive;
         transfer.connectTimeoutMs = options.timeoutSeconds * 1000;
         // 传输阶段允许更长的静默期：大文件在慢速链路上可能长时间持续传输。
         transfer.ioTimeoutMs = std::max(60000, options.timeoutSeconds * 1000);
@@ -431,6 +430,8 @@ int RunUpdater(const Options& options) {
         }
         LogDebug(Format(L"TCP 传输的 CRC32 校验通过：%08X",
                         static_cast<unsigned>(transferResult.crc32)));
+        // 以服务端返回的文件名作为后续解压的对象。
+        archivePath = transferResult.savedPath;
         transferredBytes = transferResult.bytesWritten;
     } else {
         HttpDownloadOptions download;

@@ -21,3 +21,7 @@ CMakeSettings.json
 
 # 本机 Python 虚拟环境（由工具链自动生成，与项目构建无关）
 .venv/
+
+# 发布包：体积大，随发布渠道分发，不入库
+#（发送端默认分发的 ShittimLogon.zip 通常就放在它自己旁边）
+*.zip

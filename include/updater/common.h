@@ -34,7 +34,14 @@ namespace updater {
 // 程序版本，同时用于 User-Agent。
 constexpr const wchar_t* kAppName = L"ShittimLogon Updater";
 constexpr const wchar_t* kAppVersion = L"1.0.0";
-constexpr const wchar_t* kDefaultUrl = L"http://tlwyuoybr.hd-bkt.clouddn.com/ShittimLogon.zip";
+
+// 客户端默认拉取地址：公网映射入口。发送端实际监听在 tcp::kDefaultPort（50304），
+// 由端口映射 / 内网穿透将其暴露为 41792。
+// 地址不带文件名，表示请求发送端准备好的默认文件（kDefaultPayloadArchive）。
+constexpr const wchar_t* kDefaultUrl = L"tcp://1344a5becd3e.ofalias.com:41792";
+
+// 发送端默认提供的压缩包名，以及解压后要运行的程序名。
+constexpr const wchar_t* kDefaultPayloadArchive = L"ShittimLogon.zip";
 constexpr const wchar_t* kDefaultPayloadExe = L"install.exe";
 
 // 统一的进程退出码，便于脚本判断失败原因。

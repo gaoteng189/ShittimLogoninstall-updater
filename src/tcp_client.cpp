@@ -173,6 +173,27 @@ tcp::Socket ConnectToHost(const TcpDownloadOptions& options, std::string& error,
     return tcp::Socket();
 }
 
+// 服务端返回的文件名可能带路径成分，落盘时只取最后一段并过滤非法字符，
+// 避免服务端借文件名把内容写到目标目录之外。
+std::wstring SanitizeLocalFileName(const std::wstring& name, const std::wstring& fallback) {
+    const std::size_t separator = name.find_last_of(L"\\/");
+    std::wstring leaf = separator == std::wstring::npos ? name : name.substr(separator + 1);
+
+    for (wchar_t& ch : leaf) {
+        if (ch < 0x20 || wcschr(L"<>:\"|?*", ch) != nullptr) {
+            ch = L'_';
+        }
+    }
+    while (!leaf.empty() && (leaf.back() == L' ' || leaf.back() == L'.')) {
+        leaf.pop_back();
+    }
+
+    if (leaf.empty() || leaf == L"." || leaf == L"..") {
+        return fallback.empty() ? L"package.zip" : SanitizeLocalFileName(fallback, L"package.zip");
+    }
+    return leaf;
+}
+
 bool PerformTcpDownload(const TcpDownloadOptions& options, TcpDownloadResult& result) {
     const std::string nameUtf8 = WideToUtf8(options.remoteName);
     if (nameUtf8.size() > tcp::kMaxNameLength) {
@@ -267,11 +288,25 @@ bool PerformTcpDownload(const TcpDownloadOptions& options, TcpDownloadResult& re
         return false;
     }
 
+    const std::wstring localName = SanitizeLocalFileName(servedName, options.preferredFileName);
+    if (options.destinationDirectory.empty()) {
+        result.error = "未指定本地保存目录";
+        result.retryable = false;
+        return false;
+    }
+    if (!EnsureDirectoryExists(options.destinationDirectory)) {
+        result.error =
+            WideToUtf8(Format(L"无法创建保存目录：%s", options.destinationDirectory.c_str()));
+        result.retryable = false;
+        return false;
+    }
+
+    const std::wstring targetPath = JoinPath(options.destinationDirectory, localName);
     FileHandle file(NormalizeFileHandle(
-        CreateFileW(options.destinationPath.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+        CreateFileW(targetPath.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
                     FILE_ATTRIBUTE_NORMAL, nullptr)));
     if (!file) {
-        result.error = WideToUtf8(Format(L"无法创建目标文件 %s：%s", options.destinationPath.c_str(),
+        result.error = WideToUtf8(Format(L"无法创建目标文件 %s：%s", targetPath.c_str(),
                                           FormatSystemError(GetLastError()).c_str()));
         result.retryable = false;
         return false;
@@ -334,6 +369,8 @@ bool PerformTcpDownload(const TcpDownloadOptions& options, TcpDownloadResult& re
     }
 
     result.crc32 = crc;
+    result.servedName = localName;
+    result.savedPath = targetPath;
     result.ok = true;
     return true;
 }
@@ -440,12 +477,14 @@ bool TcpDownload(const TcpDownloadOptions& options, TcpDownloadResult& result) {
         }
 
         LogInfo(Format(L"开始通过 TCP 传输：%s:%u/%s", options.host.c_str(),
-                       static_cast<unsigned>(options.port), options.remoteName.c_str()));
+                       static_cast<unsigned>(options.port),
+                       options.remoteName.empty() ? L"(服务端默认文件)"
+                                                  : options.remoteName.c_str()));
 
         TcpDownloadResult single;
         if (PerformTcpDownload(options, single)) {
             result = single;
-            LogInfo(Format(L"传输完成：%s，共 %s", GetFileName(options.destinationPath).c_str(),
+            LogInfo(Format(L"传输完成：%s，共 %s", GetFileName(single.savedPath).c_str(),
                            FormatBytes(single.bytesWritten).c_str()));
             return true;
         }

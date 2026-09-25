@@ -32,7 +32,9 @@ namespace tcp {
 
 constexpr char kMagic[4] = {'S', 'L', 'U', '1'};
 constexpr std::uint16_t kProtocolVersion = 1;
-constexpr std::uint16_t kDefaultPort = 9000;
+// 发送端默认监听端口。客户端地址里通常写映射后的公网端口，
+// 只有地址中省略端口时才会用到这个值。
+constexpr std::uint16_t kDefaultPort = 50304;
 
 constexpr std::size_t kMaxNameLength = 4096;
 constexpr std::size_t kMaxMessageLength = 8192;

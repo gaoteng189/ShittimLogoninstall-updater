@@ -303,16 +303,21 @@ void HandleClient(SOCKET rawSocket, const FileServerOptions& options,
         g_activeClients.fetch_sub(1);
         return;
     }
-    const std::wstring requested = Utf8ToWide(name);
+    const std::wstring clientName = Utf8ToWide(name);
 
     switch (static_cast<tcp::Command>(request.command)) {
-        case tcp::Command::GetFile:
+        case tcp::Command::GetFile: {
+            // 客户端未指定文件名（例如地址只写到 host:port）时，提供准备好的默认文件。
+            const std::wstring requested =
+                clientName.empty() ? options.defaultFileName : clientName;
             if (requested.empty()) {
-                SendErrorResponse(socket.get(), tcp::Status::BadRequest, "未指定文件名");
+                SendErrorResponse(socket.get(), tcp::Status::BadRequest,
+                                  "未指定文件名，且服务端没有配置默认文件");
                 break;
             }
             ServeFile(socket.get(), normalizedRoot, requested, peer);
             break;
+        }
 
         case tcp::Command::ListFiles:
             if (!options.allowListing) {
@@ -346,6 +351,32 @@ bool RunFileServer(const FileServerOptions& options, const std::atomic<bool>& st
     if (!DirectoryExists(normalizedRoot)) {
         error = WideToUtf8(Format(L"根目录不存在：%s", options.rootDirectory.c_str()));
         return false;
+    }
+
+    // 启动即确认待分发的文件就绪，避免客户端连上之后才发现拿不到东西。
+    if (!options.defaultFileName.empty()) {
+        std::wstring defaultPath;
+        std::string resolveError;
+        if (!ResolveRequestPath(normalizedRoot, options.defaultFileName, defaultPath,
+                                resolveError)) {
+            error = WideToUtf8(
+                Format(L"默认文件名非法：%s", Utf8ToWide(resolveError).c_str()));
+            return false;
+        }
+        if (!FileExists(defaultPath)) {
+            error = WideToUtf8(Format(L"未找到要分发的文件：%s", defaultPath.c_str()));
+            return false;
+        }
+
+        std::wstring sizeText = L"大小未知";
+        WIN32_FILE_ATTRIBUTE_DATA attributes{};
+        if (GetFileAttributesExW(defaultPath.c_str(), GetFileExInfoStandard, &attributes)) {
+            const std::uint64_t size =
+                (static_cast<std::uint64_t>(attributes.nFileSizeHigh) << 32) |
+                attributes.nFileSizeLow;
+            sizeText = FormatBytes(size);
+        }
+        LogInfo(Format(L"准备分发：%s（%s）", defaultPath.c_str(), sizeText.c_str()));
     }
 
     ADDRINFOW hints{};
