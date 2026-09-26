@@ -2,13 +2,32 @@
 
 一个独立的 Windows 更新器：**从指定地址下载压缩包 → 自动解压 → 运行压缩包中的 `install.exe`**。
 
-提供三个版本，功能完全等价，按部署环境选择：
+仓库按 .NET 运行时分成两棵树，产物各自落在自己的 `dist\` 下，互不混杂：
 
-| 版本 | 产物 | 图形界面 | 运行时依赖 | 适用场景 |
-| --- | --- | --- | --- | --- |
-| **WinUI 3 客户端**（`client-winui/`） | 根目录 `ShittimLogonUpdater-single.exe`，或 `dist\winui-x64\` 目录 | ✅ 原生 Win11（Mica / 圆角 / 明暗跟随） | 无（运行时都打进去了） | **推荐** |
-| **`.NET` 客户端**（`client/`） | `ShittimLogonUpdaterNet.exe` | WinForms | .NET Framework 4.8（Windows 自带） | 单文件、体积敏感 |
-| **C++ 客户端**（`src/`） | `ShittimLogonUpdater.exe` | 控制台 | 无（静态链接运行时） | 无 .NET 环境 / 脚本调用 |
+```text
+net48\                        仅 .NET Framework 4.8（Windows 自带，无需装运行时）
+├── client\                   WinForms 客户端源码
+└── dist\ShittimLogonUpdaterNet.exe
+
+net10\                        需要 .NET 10 + Windows App SDK（已自包含进产物）
+├── client\                   WinUI 3 客户端源码
+├── sender\                   WinUI 3 发送端源码
+└── dist\
+    ├── ShittimLogonUpdater-single.exe    客户端 · 单文件版
+    ├── ShittimLogonSender-single.exe     发送端 · 单文件版
+    ├── winui-x64\                        客户端 · 目录版
+    └── sender-x64\                       发送端 · 目录版
+
+src\ include\ res\             C++ 版（不依赖任何 .NET 运行时）
+```
+
+提供三个客户端版本，功能完全等价，按部署环境选择：
+
+| 版本 | 源码 | 产物 | 图形界面 | 运行时依赖 | 适用场景 |
+| --- | --- | --- | --- | --- | --- |
+| **WinUI 3 客户端** | `net10/client/` | `net10\dist\ShittimLogonUpdater-single.exe`，或 `net10\dist\winui-x64\` 目录 | ✅ 原生 Win11（Mica / 圆角 / 明暗跟随） | 无（运行时都打进去了） | **推荐** |
+| **.NET Framework 客户端** | `net48/client/` | `net48\dist\ShittimLogonUpdaterNet.exe` | WinForms | .NET Framework 4.8（Windows 自带） | 单文件、体积敏感 |
+| **C++ 客户端** | `src/` | `build\ShittimLogonUpdater.exe` | 控制台 | 无（静态链接运行时） | 无 .NET 环境 / 脚本调用 |
 
 三个客户端共用同一套 `SLU/1` 协议：下载、解压、运行这三步的业务逻辑与界面完全解耦，
 WinUI 3 版与 WinForms 版的 `Updater.cs` 是同一份代码，只有界面层不同。
@@ -16,10 +35,10 @@ WinUI 3 版与 WinForms 版的 `Updater.cs` 是同一份代码，只有界面层
 另有**发送端** —— 可选的 TCP 文件服务，让客户端在**没有 HTTP 服务**的环境下
 点对点拉取文件。它也有两个版本：
 
-| 版本 | 产物 | 图形界面 | 适用场景 |
-| --- | --- | --- | --- |
-| **WinUI 3 发送端**（`sender-winui/`） | 根目录 `ShittimLogonSender-single.exe`，或 `dist\sender-x64\` 目录 | ✅ 原生 Win11 | **推荐** |
-| **C++ 发送端**（`src/sender_main.cpp`） | `ShittimLogonSender.exe` | 控制台 | 无 .NET 环境 / 脚本调用 |
+| 版本 | 源码 | 产物 | 图形界面 | 适用场景 |
+| --- | --- | --- | --- | --- |
+| **WinUI 3 发送端** | `net10/sender/` | `net10\dist\ShittimLogonSender-single.exe`，或 `net10\dist\sender-x64\` 目录 | ✅ 原生 Win11 | **推荐** |
+| **C++ 发送端** | `src/sender_main.cpp` | `build\ShittimLogonSender.exe` | 控制台 | 无 .NET 环境 / 脚本调用 |
 
 C++ 版全部代码不依赖任何第三方库：HTTP 用 WinHTTP，解压用自研的 DEFLATE 实现，
 TCP 传输用 Winsock 加自定义应用层协议。
@@ -32,7 +51,7 @@ TCP 传输用 Winsock 加自定义应用层协议。
 自定义标题栏、内容入场过渡动画**。
 
 ```text
-client-winui\
+net10\client\
 ├── ShittimLogonUpdater.csproj  项目文件（net10.0-windows + WinUI 3）
 ├── build.bat                   编译脚本（双击即可，内部调 dotnet build）
 ├── App.xaml / App.xaml.cs      应用入口
@@ -46,18 +65,17 @@ client-winui\
 编译（一次产出两种形态）：
 
 ```powershell
-client-winui\build.bat
+net10\client\build.bat
 ```
 
 ```text
-ShittimLogonUpdater-single.exe        单文件版：1 个文件 / 171.5 MB（直接放仓库根目录）
-
-dist\winui-x64\                       目录版：461 个文件 / 178.1 MB
-└── ShittimLogonUpdater.exe           客户端（当前版本 2.0.0.0）
+net10\dist\
+├── ShittimLogonUpdater-single.exe    单文件版：1 个文件 / 171.5 MB
+└── winui-x64\                        目录版：461 个文件 / 178.1 MB
+    └── ShittimLogonUpdater.exe       客户端（当前版本 2.0.0.0）
 ```
 
-单文件版刻意输出到**仓库根目录**而不是 `dist\`：它就是一个文件，放根目录
-一眼就能看到，也方便直接拷走。
+两个产物都在 `net10\dist\` 里，不会与 net48 的产混淆。
 
 ### 两种形态怎么选
 
@@ -129,7 +147,7 @@ Windows App SDK 的 `SingleFile.targets` 强制要求这个开关，用来把 PR
 与客户端同一套观感（Mica、圆角、自定义标题栏），用于把安装包分发给客户端。
 
 ```text
-sender-winui\
+net10\sender\
 ├── ShittimLogonSender.csproj  项目文件
 ├── build.bat                  编译脚本（双击即可）
 ├── App.xaml / App.xaml.cs     应用入口
@@ -143,14 +161,14 @@ sender-winui\
 编译（同样一次产出两种形态）：
 
 ```powershell
-sender-winui\build.bat
+net10\sender\build.bat
 ```
 
 ```text
-ShittimLogonSender-single.exe         单文件版：1 个文件 / 171.5 MB（同样放根目录）
-
-dist\sender-x64\                      目录版：460 个文件 / 178.1 MB
-└── ShittimLogonSender.exe
+net10\dist\
+├── ShittimLogonSender-single.exe     单文件版：1 个文件 / 171.5 MB
+└── sender-x64\                       目录版：460 个文件 / 178.1 MB
+    └── ShittimLogonSender.exe
 ```
 
 发送端尤其适合单文件形态 —— 它本来就是拷到另一台机器上去跑的。
@@ -206,7 +224,7 @@ SHA-256   源 = 拉取 = 79C0E77F…3A3A7      完全一致
 单文件产物（17 KB），适合体积敏感或只需要一个 exe 的场景。
 
 ```text
-client\
+net48\client\
 ├── ShittimLogonUpdater.csproj   项目文件（net48 + WinExe）
 ├── build.bat           编译脚本（双击即可，内部调 dotnet build）
 ├── AssemblyInfo.cs     产品名 / 版本 / 版权（写入 exe 的文件属性）
@@ -217,20 +235,20 @@ client\
 └── app.manifest        DPI 感知 + Windows 10/11 兼容性
 ```
 
-编译（产物直接输出到项目根目录，无需再去 build 目录里找）：
+编译（产物落在 `net48\dist\`）：
 
 ```powershell
-client\build.bat
+net48\client\build.bat
 ```
 
 ```text
-ShittimLogonUpdaterNet.exe    客户端（当前版本 1.1.0.1）
+net48\dist\ShittimLogonUpdaterNet.exe    客户端（当前版本 1.1.0.1）
 ```
 
 等价于：
 
 ```powershell
-dotnet build client\ShittimLogonUpdater.csproj -c Release
+dotnet build net48\client\ShittimLogonUpdater.csproj -c Release
 ```
 
 版本号写在 `client\AssemblyInfo.cs`，改完重新编译即可；「文件属性 → 详细信息」

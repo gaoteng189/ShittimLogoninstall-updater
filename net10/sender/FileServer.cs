@@ -2,7 +2,7 @@
 //  SLU/1 协议服务端
 //
 //  对应 C++ 版 src/file_server.cpp：监听 TCP 端口，把准备好的安装包分发给客户端。
-//  协议定义见 include/updater/tcp_protocol.h，客户端实现见 client-winui\Updater.cs。
+//  协议定义见 include/updater/tcp_protocol.h，客户端实现见 net10\client\Updater.cs。
 //
 //  一次交互：
 //    客户端 -> 服务端   Request(24B) + 文件名字节

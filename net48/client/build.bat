@@ -4,10 +4,10 @@ setlocal
 rem ---------------------------------------------------------------------------
 rem  Build the .NET Framework 4.8 + WinForms client.
 rem
-rem  The result is written straight to the repository root as
-rem  ShittimLogonUpdaterNet.exe, so it can be double-clicked without hunting
-rem  through a build folder. The "Net" suffix keeps it clear of the C++
-rem  console build, which owns the plain ShittimLogonUpdater.exe name.
+rem  The result is written to net48\dist\ShittimLogonUpdaterNet.exe -- inside the
+rem  net48 tree, next to its source, so the two .NET runtimes never mix. The
+rem  "Net" suffix keeps it clear of the C++ console build, which owns the plain
+rem  ShittimLogonUpdater.exe name.
 rem
 rem  Version info (product name, copyright, file version) comes from
 rem  AssemblyInfo.cs -- edit it there, not here.
@@ -26,12 +26,13 @@ rem  NOTE: comments here are kept ASCII on purpose. cmd.exe reads .bat files
 rem  using the OEM code page, so non-ASCII comments can be mis-parsed into
 rem  bogus commands.
 rem
-rem  Usage: double-click it, or run  client\build.bat
+rem  Usage: double-click it, or run  net48\client\build.bat
 rem ---------------------------------------------------------------------------
 
 set "HERE=%~dp0"
-for %%I in ("%HERE%..") do set "ROOT=%%~fI"
-set "OUT=%ROOT%\ShittimLogonUpdaterNet.exe"
+rem RUNTIME is the runtime root (this project's parent: net48).
+for %%I in ("%HERE%..") do set "RUNTIME=%%~fI"
+set "OUT=%RUNTIME%\dist\ShittimLogonUpdaterNet.exe"
 
 where dotnet >nul 2>nul
 if errorlevel 1 goto no_dotnet

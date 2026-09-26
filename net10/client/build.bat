@@ -21,12 +21,14 @@ rem  NOTE: comments here are kept ASCII on purpose. cmd.exe reads .bat files
 rem  using the OEM code page, so non-ASCII comments can be mis-parsed into
 rem  bogus commands.
 rem
-rem  Usage: double-click it, or run  client-winui\build.bat
+rem  Usage: double-click it, or run  net10\client\build.bat
 rem ---------------------------------------------------------------------------
 
 set "HERE=%~dp0"
-for %%I in ("%HERE%..") do set "ROOT=%%~fI"
-set "OUT=%ROOT%\dist\winui-x64\ShittimLogonUpdater.exe"
+rem RUNTIME is the runtime root (this project's parent: net10). Everything lands
+rem under its dist folder, so net10 and net48 never mix.
+for %%I in ("%HERE%..") do set "RUNTIME=%%~fI"
+set "OUT=%RUNTIME%\dist\winui-x64\ShittimLogonUpdater.exe"
 
 where dotnet >nul 2>nul
 if errorlevel 1 goto no_dotnet
@@ -56,8 +58,8 @@ rem  Single-file build goes to the repository ROOT, not into dist\: it is one
 rem  file, and the root is where you actually look for it. The "-single" suffix
 rem  keeps it clear of the C++ build, which owns the plain ShittimLogonUpdater.exe
 rem  name. dist\winui-x64\ still holds the folder build.
-set "SINGLE=%ROOT%\ShittimLogonUpdater-single.exe"
-set "STAGE=%ROOT%\dist\_single-stage"
+set "SINGLE=%RUNTIME%\dist\ShittimLogonUpdater-single.exe"
+set "STAGE=%RUNTIME%\dist\_single-stage"
 
 if exist "%STAGE%" rmdir /s /q "%STAGE%"
 
@@ -76,7 +78,7 @@ if exist "%STAGE%" rmdir /s /q "%STAGE%"
 
 echo.
 echo [OK] %OUT%
-echo      folder build -- copy the whole dist\winui-x64\ directory
+echo      folder build -- copy the whole net10\dist\winui-x64\ directory
 echo [OK] %SINGLE%
 echo      single-file build -- copy just this one file
 exit /b 0

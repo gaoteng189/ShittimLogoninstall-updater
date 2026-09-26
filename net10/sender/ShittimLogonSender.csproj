@@ -11,7 +11,7 @@
 
   产物：dist\sender-x64\
 
-  构建：sender-winui\build.bat   或   dotnet build
+  构建：net10\sender\build.bat   或   dotnet build
 -->
 <Project Sdk="Microsoft.NET.Sdk">
 
@@ -57,9 +57,9 @@
   </ItemGroup>
 
   <!--
-    同 client-winui：Windows App SDK 2.x 的总包会把整套 AI 栈一并拉进来，
+    同 net10\client：Windows App SDK 2.x 的总包会把整套 AI 栈一并拉进来，
     在自包含产物里贡献 onnxruntime.dll / DirectML.dll 等约 50 MB，发送端用不到，
-    显式排除。详见 client-winui 项目文件里的完整说明。
+    显式排除。详见 net10\client 项目文件里的完整说明。
   -->
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK.AI" Version="2.5.5" ExcludeAssets="all" PrivateAssets="all" />

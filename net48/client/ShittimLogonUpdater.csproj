@@ -27,8 +27,8 @@
 
     <ApplicationManifest>app.manifest</ApplicationManifest>
 
-    <!-- 产物直接落到仓库根目录，不追加 Configuration / TargetFramework 子目录。 -->
-    <OutputPath>$(MSBuildThisFileDirectory)..\</OutputPath>
+    <!-- 产物落到 net48\dist\，不追加 Configuration / TargetFramework 子目录。 -->
+    <OutputPath>$(MSBuildThisFileDirectory)..\dist\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 

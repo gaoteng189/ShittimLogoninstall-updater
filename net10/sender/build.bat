@@ -17,12 +17,14 @@ rem  NOTE: comments here are kept ASCII on purpose. cmd.exe reads .bat files
 rem  using the OEM code page, so non-ASCII comments can be mis-parsed into
 rem  bogus commands.
 rem
-rem  Usage: double-click it, or run  sender-winui\build.bat
+rem  Usage: double-click it, or run  net10\sender\build.bat
 rem ---------------------------------------------------------------------------
 
 set "HERE=%~dp0"
-for %%I in ("%HERE%..") do set "ROOT=%%~fI"
-set "OUT=%ROOT%\dist\sender-x64\ShittimLogonSender.exe"
+rem RUNTIME is the runtime root (this project's parent: net10). Everything lands
+rem under its dist folder, so net10 and net48 never mix.
+for %%I in ("%HERE%..") do set "RUNTIME=%%~fI"
+set "OUT=%RUNTIME%\dist\sender-x64\ShittimLogonSender.exe"
 
 where dotnet >nul 2>nul
 if errorlevel 1 goto no_dotnet
@@ -35,12 +37,11 @@ if errorlevel 1 goto failed
 
 if not exist "%OUT%" goto missing
 
-rem  Also produce a single-file build -- see client-winui\build.bat for the
-rem  full explanation of the trade-offs involved.
-rem  Single-file build goes to the repository ROOT -- see client-winui\build.bat
-rem  for the reasoning.
-set "SINGLE=%ROOT%\ShittimLogonSender-single.exe"
-set "STAGE=%ROOT%\dist\_single-stage-sender"
+rem  Also produce a single-file build -- see net10\client\build.bat for the
+rem  full explanation of the trade-offs involved. Both the folder build and the
+rem  single-file build land in net10\dist\, next to the client's output.
+set "SINGLE=%RUNTIME%\dist\ShittimLogonSender-single.exe"
+set "STAGE=%RUNTIME%\dist\_single-stage-sender"
 
 if exist "%STAGE%" rmdir /s /q "%STAGE%"
 
@@ -59,7 +60,7 @@ if exist "%STAGE%" rmdir /s /q "%STAGE%"
 
 echo.
 echo [OK] %OUT%
-echo      folder build -- copy the whole dist\sender-x64\ directory
+echo      folder build -- copy the whole net10\dist\sender-x64\ directory
 echo [OK] %SINGLE%
 echo      single-file build -- copy just this one file
 exit /b 0

@@ -10,10 +10,10 @@
   目标机器不需要预装任何运行时，整个输出目录拷过去双击即可 —— 对「更新器」这种
   要在干净机器上跑的工具是必须的。代价是目录约 100 MB。
 
-  产物：dist\winui-x64\
-  自包含目录有上百个文件，不适合放仓库根目录，因此单独成目录。
+  产物：net10\dist\（单文件版 + winui-x64\ 目录版）
+  自包含目录有上百个文件，所以单独成目录，不铺在仓库根目录。
 
-  构建：client-winui\build.bat   或   dotnet build
+  构建：net10\client\build.bat   或   dotnet build
 -->
 <Project Sdk="Microsoft.NET.Sdk">
 
