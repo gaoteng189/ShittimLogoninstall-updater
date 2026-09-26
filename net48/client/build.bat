@@ -40,7 +40,7 @@ if errorlevel 1 goto no_dotnet
 rem Force English output: only the messages change, never the build result.
 set "DOTNET_CLI_UI_LANGUAGE=en"
 
-dotnet build "%HERE%ShittimLogonUpdater.csproj" -c Release --nologo -v minimal
+dotnet build "%HERE%ShittimLogonUpdaterNet48.csproj" -c Release --nologo -v minimal
 if errorlevel 1 goto failed
 
 if not exist "%OUT%" goto missing

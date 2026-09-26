@@ -10,7 +10,7 @@
   没有它编译会报「未能找到 System.Windows.Forms」之类的错误。
   本项目不引用任何 NuGet 包。
 
-  产物：仓库根目录的 ShittimLogonUpdaterNet.exe —— 带 Net 后缀以区别于
+  产物：net48\dist\ShittimLogonUpdaterNet.exe —— 带 Net 后缀以区别于
   C++ 控制台版的 ShittimLogonUpdater.exe，两者可以并存。
 -->
 <Project Sdk="Microsoft.NET.Sdk">

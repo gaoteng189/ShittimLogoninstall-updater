@@ -225,14 +225,14 @@ SHA-256   源 = 拉取 = 79C0E77F…3A3A7      完全一致
 
 ```text
 net48\client\
-├── ShittimLogonUpdater.csproj   项目文件（net48 + WinExe）
-├── build.bat           编译脚本（双击即可，内部调 dotnet build）
-├── AssemblyInfo.cs     产品名 / 版本 / 版权（写入 exe 的文件属性）
-├── Crc32.cs            CRC-32，与 C++ 端位级一致
-├── Updater.cs          SLU/1 协议 + 下载 / 解压 / 运行
-├── MainForm.cs         界面
-├── Program.cs          入口
-└── app.manifest        DPI 感知 + Windows 10/11 兼容性
+├── ShittimLogonUpdaterNet48.csproj   项目文件（net48 + WinExe）
+├── build.bat                         编译脚本（双击即可，内部调 dotnet build）
+├── AssemblyInfo.cs                   产品名 / 版本 / 版权（写入 exe 的文件属性）
+├── Crc32.cs                          CRC-32，与 C++ 端位级一致
+├── Updater.cs                        SLU/1 协议 + 下载 / 解压 / 运行
+├── MainForm.cs                       界面
+├── Program.cs                        入口
+└── app.manifest                      DPI 感知 + Windows 10/11 兼容性
 ```
 
 编译（产物落在 `net48\dist\`）：
@@ -248,7 +248,7 @@ net48\dist\ShittimLogonUpdaterNet.exe    客户端（当前版本 1.1.0.1）
 等价于：
 
 ```powershell
-dotnet build net48\client\ShittimLogonUpdater.csproj -c Release
+dotnet build net48\client\ShittimLogonUpdaterNet48.csproj -c Release
 ```
 
 版本号写在 `client\AssemblyInfo.cs`，改完重新编译即可；「文件属性 → 详细信息」
