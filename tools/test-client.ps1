@@ -15,7 +15,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
-$exe = Join-Path $root 'build\client\ShittimLogonUpdater.exe'
+$exe = Join-Path $root 'ShittimLogonUpdaterNet.exe'
 if (-not (Test-Path $exe)) { throw "not found: $exe" }
 
 Add-Type -TypeDefinition @'

@@ -4,6 +4,14 @@ setlocal
 rem ---------------------------------------------------------------------------
 rem  Build the .NET Framework 4.8 + WinForms client.
 rem
+rem  The result is written straight to the repository root as
+rem  ShittimLogonUpdaterNet.exe, so it can be double-clicked without hunting
+rem  through a build folder. The "Net" suffix keeps it clear of the C++
+rem  console build, which owns the plain ShittimLogonUpdater.exe name.
+rem
+rem  Version info (product name, copyright, file version) comes from
+rem  AssemblyInfo.cs -- edit it there, not here.
+rem
 rem  This machine has no .NET SDK (C:\Program Files\dotnet contains only
 rem  host/shared, no sdk), so "dotnet build" is unavailable. Instead we invoke
 rem  the Roslyn compiler shipped with VS BuildTools and reference the
@@ -22,19 +30,19 @@ set "CSC=C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\
 if not exist "%CSC%" goto no_csc
 
 set "HERE=%~dp0"
-set "OUT=%HERE%..\build\client"
-
-if not exist "%OUT%" mkdir "%OUT%"
+for %%I in ("%HERE%..") do set "ROOT=%%~fI"
+set "OUT=%ROOT%\ShittimLogonUpdaterNet.exe"
 
 "%CSC%" /nologo /target:winexe /platform:x64 /langversion:7.3 /codepage:65001 ^
     /win32manifest:"%HERE%app.manifest" ^
-    /out:"%OUT%\ShittimLogonUpdater.exe" ^
+    /out:"%OUT%" ^
     /reference:System.dll ^
     /reference:System.Core.dll ^
     /reference:System.Drawing.dll ^
     /reference:System.Windows.Forms.dll ^
     /reference:System.IO.Compression.dll ^
     /reference:System.IO.Compression.FileSystem.dll ^
+    "%HERE%AssemblyInfo.cs" ^
     "%HERE%Crc32.cs" ^
     "%HERE%Updater.cs" ^
     "%HERE%MainForm.cs" ^
@@ -43,7 +51,7 @@ if not exist "%OUT%" mkdir "%OUT%"
 if errorlevel 1 goto failed
 
 echo.
-echo [OK] %OUT%\ShittimLogonUpdater.exe
+echo [OK] %OUT%
 exit /b 0
 
 :no_csc

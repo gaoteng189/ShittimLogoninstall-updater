@@ -4,10 +4,12 @@
 
 提供两个版本，功能完全等价，按部署环境选择：
 
-| 版本 | 图形界面 | 运行时依赖 | 适用场景 |
-| --- | --- | --- | --- |
-| **`.NET` 客户端**（`client/`） | ✅ WinForms | .NET Framework 4.8（Windows 自带） | **推荐**，双击即用 |
-| **C++ 客户端**（`src/`） | 控制台 | 无（静态链接运行时） | 无 .NET 环境 / 脚本调用 |
+| 版本 | 产物 | 图形界面 | 运行时依赖 | 适用场景 |
+| --- | --- | --- | --- | --- |
+| **`.NET` 客户端**（`client/`） | `ShittimLogonUpdaterNet.exe` | ✅ WinForms | .NET Framework 4.8（Windows 自带） | **推荐**，双击即用 |
+| **C++ 客户端**（`src/`） | `ShittimLogonUpdater.exe` | 控制台 | 无（静态链接运行时） | 无 .NET 环境 / 脚本调用 |
+
+两个客户端都编译到项目根目录，文件名不同所以可以并存。
 
 另有 **`ShittimLogonSender.exe`**（发送端）—— 可选的 TCP 文件服务，让客户端在
 **没有 HTTP 服务**的环境下点对点拉取文件。
@@ -23,6 +25,7 @@ TCP 传输用 Winsock 加自定义应用层协议。`.NET` 版复用同一套 `S
 ```text
 client\
 ├── build.bat           编译脚本（双击即可）
+├── AssemblyInfo.cs     产品名 / 版本 / 版权（写入 exe 的文件属性）
 ├── Crc32.cs            CRC-32，与 C++ 端位级一致
 ├── Updater.cs          SLU/1 协议 + 下载 / 解压 / 运行
 ├── MainForm.cs         界面
@@ -30,11 +33,18 @@ client\
 └── app.manifest        DPI 感知 + Windows 10/11 兼容性
 ```
 
-编译（产物在 `build\client\ShittimLogonUpdater.exe`）：
+编译（产物直接输出到项目根目录，无需再去 build 目录里找）：
 
 ```powershell
 client\build.bat
 ```
+
+```text
+ShittimLogonUpdaterNet.exe    客户端（当前版本 1.1.0.1）
+```
+
+版本号写在 `client\AssemblyInfo.cs`，改完重新跑 `build.bat` 即可；「文件属性 →
+详细信息」里的产品名、描述与版权同样来自该文件。
 
 本机没有安装 .NET SDK，因此 `build.bat` 直接调用 VS BuildTools 自带的 Roslyn
 编译器（`MSBuild\Current\Bin\Roslyn\csc.exe`），引用程序集取自已安装的
