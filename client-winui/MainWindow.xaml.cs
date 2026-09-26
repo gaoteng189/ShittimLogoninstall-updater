@@ -17,6 +17,11 @@ namespace ShittimLogonUpdater
         // 仅在传输进行中存在，完成后置回 null
         private CancellationTokenSource? _cancellation;
 
+        // 下载速度采样：拿两次回调之间的字节差除以时间差
+        private DateTime _lastSampleTime = DateTime.MinValue;
+        private long _lastSampleBytes;
+        private string _speed = string.Empty;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -52,20 +57,70 @@ namespace ShittimLogonUpdater
 
         private void UpdateProgress(long done, long total)
         {
+            string speed = UpdateSpeed(done);
+            string tail = speed.Length > 0 ? "　" + speed : string.Empty;
+
             // total 未知时用不确定进度条
             if (total <= 0)
             {
                 Progress.IsIndeterminate = true;
-                StatusText.Text = done > 0 ? FormatBytes(done) : "准备中…";
+                StatusText.Text = done > 0 ? FormatBytes(done) + tail : "准备中…";
                 return;
             }
 
             Progress.IsIndeterminate = false;
             Progress.Value = done * 100.0 / total;
-            StatusText.Text = string.Format("下载中 {0:0}%　{1} / {2}",
+            StatusText.Text = string.Format("下载中 {0:0}%　{1} / {2}{3}",
                 done * 100.0 / total,
                 FormatBytes(done),
-                FormatBytes(total));
+                FormatBytes(total),
+                tail);
+        }
+
+        // -------------------------------------------------------------------
+        //  下载速度
+        //
+        //  采样间隔太短会把网络抖动放大成乱跳的数字，因此低于 200ms 的间隔直接跳过。
+        //  每轮传输开始时会重置基线，否则会拿上一轮的字节数当起点。
+        // -------------------------------------------------------------------
+        private string UpdateSpeed(long done)
+        {
+            var now = DateTime.UtcNow;
+            if (_lastSampleTime == DateTime.MinValue)
+            {
+                _lastSampleTime = now;
+                _lastSampleBytes = done;
+                return _speed;
+            }
+
+            double seconds = (now - _lastSampleTime).TotalSeconds;
+            if (seconds < 0.2)
+            {
+                return _speed;
+            }
+
+            double bytesPerSecond = (done - _lastSampleBytes) / seconds;
+            _lastSampleTime = now;
+            _lastSampleBytes = done;
+
+            if (bytesPerSecond > 0)
+            {
+                _speed = FormatSpeed(bytesPerSecond);
+            }
+            return _speed;
+        }
+
+        private static string FormatSpeed(double bytesPerSecond)
+        {
+            string[] units = { "B/s", "KB/s", "MB/s", "GB/s" };
+            double value = bytesPerSecond;
+            int unit = 0;
+            while (value >= 1024 && unit < units.Length - 1)
+            {
+                value /= 1024;
+                unit++;
+            }
+            return string.Format("{0:0.#} {1}", value, units[unit]);
         }
 
         private static string FormatBytes(long bytes)
@@ -98,6 +153,11 @@ namespace ShittimLogonUpdater
             CancelButton.IsEnabled = true;
             UrlBox.IsEnabled = false;
             _log.Clear();
+
+            // 重置速度采样基线
+            _lastSampleTime = DateTime.MinValue;
+            _lastSampleBytes = 0;
+            _speed = string.Empty;
 
             string workDirectory = Path.Combine(Path.GetTempPath(), "ShittimLogonUpdater");
             Log("工作目录：" + workDirectory);

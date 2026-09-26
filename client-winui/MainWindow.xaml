@@ -42,75 +42,106 @@
             </StackPanel>
         </Grid>
 
-        <!-- ================= 主内容 ================= -->
-        <ScrollViewer Grid.Row="1"
-                      Padding="32,4,32,28"
-                      VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="18"
-                        MaxWidth="760"
-                        HorizontalAlignment="Stretch">
+        <!-- ================= 主内容 =================
 
-                <!-- 标题 -->
-                <StackPanel Spacing="6">
-                    <TextBlock Text="ShittimLogon 更新器"
-                               Style="{StaticResource TitleTextBlockStyle}" />
-                    <TextBlock Text="自动拉取安装包 → 解压 → 运行其中的 install.exe"
-                               Style="{StaticResource BodyTextBlockStyle}"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                               TextWrapping="Wrap" />
-                </StackPanel>
+             外层用 Grid 而不是 ScrollViewer + StackPanel，这是为了修布局偏移：
 
-                <!-- 拉取地址 -->
-                <StackPanel Spacing="6">
-                    <TextBlock Text="拉取地址"
-                               Style="{StaticResource CaptionTextBlockStyle}"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <TextBox x:Name="UrlBox" />
-                </StackPanel>
+               ScrollViewer 测量内容时给的是「无限宽」约束，这是它的设计使然。
+               在无限约束下 HorizontalAlignment=Stretch 无法"填满"（不知道要填多少），
+               会退化成按内容收缩 —— 整个面板缩到 ~540px 并贴向右侧，
+               看上去就是界面整体右移。HorizontalScrollMode=Disabled 治不了这个，
+               它只影响能否滚动，不改测量约束。
 
-                <!-- 操作 -->
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Button x:Name="StartButton"
-                            Content="开始"
-                            Style="{StaticResource AccentButtonStyle}"
-                            MinWidth="112"
-                            Click="OnStartClicked" />
-                    <Button x:Name="CancelButton"
-                            Content="取消"
-                            MinWidth="112"
-                            IsEnabled="False"
-                            Click="OnCancelClicked" />
-                </StackPanel>
+               Grid 的列宽是 *，由可用空间决定，不受子元素影响，因此布局可控。
+               高度方向也不需要外层滚动：日志区自带滚动（ListView），
+               给它 * 行让它吃掉剩余空间即可，窗口变矮时它自己会缩。
 
-                <!-- 进度 -->
-                <StackPanel Spacing="8">
-                    <!-- 注意不要命名为 ProgressBar：那会遮蔽同名的控件类型 -->
-                    <ProgressBar x:Name="Progress" />
-                    <TextBlock x:Name="StatusText"
-                               Style="{StaticResource CaptionTextBlockStyle}"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                               Text="就绪"
-                               TextWrapping="Wrap" />
-                </StackPanel>
+               这里刻意不给 MaxWidth，也不加 HorizontalAlignment=Center：
+               内容左端贴着窗口内边距起排、右侧自然填满，这才是桌面工具该有的样子。
+               一旦设成 Center，Grid 会退化成按内容收缩（实测缩到 300px 并居中），
+               两侧都是空白，反而更怪。左侧那片留白是给侧边导航预留的位置，
+               本程序用不上，铺满即可。
+        -->
+        <Grid Grid.Row="1" Padding="32,4,32,28">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
 
-                <!-- 日志 -->
-                <StackPanel Spacing="6">
-                    <TextBlock Text="日志"
-                               Style="{StaticResource CaptionTextBlockStyle}"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <Border CornerRadius="8"
-                            BorderThickness="1"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                        <ListView x:Name="LogList"
-                                  Height="190"
-                                  Padding="4"
-                                  SelectionMode="None"
-                                  IsItemClickEnabled="False" />
-                    </Border>
-                </StackPanel>
-
+            <!-- 标题 -->
+            <StackPanel Grid.Row="0" Spacing="6">
+                <TextBlock Text="ShittimLogon 更新器"
+                           Style="{StaticResource TitleTextBlockStyle}" />
+                <TextBlock Text="自动拉取安装包 → 解压 → 运行其中的 install.exe"
+                           Style="{StaticResource BodyTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           TextWrapping="Wrap" />
             </StackPanel>
-        </ScrollViewer>
+
+            <!-- 拉取地址 -->
+            <StackPanel Grid.Row="1" Spacing="6" Margin="0,18,0,0">
+                <TextBlock Text="拉取地址"
+                           Style="{StaticResource CaptionTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBox x:Name="UrlBox" />
+            </StackPanel>
+
+            <!-- 操作 -->
+            <StackPanel Grid.Row="2"
+                        Orientation="Horizontal"
+                        Spacing="10"
+                        Margin="0,18,0,0">
+                <Button x:Name="StartButton"
+                        Content="开始"
+                        Style="{StaticResource AccentButtonStyle}"
+                        MinWidth="112"
+                        Click="OnStartClicked" />
+                <Button x:Name="CancelButton"
+                        Content="取消"
+                        MinWidth="112"
+                        IsEnabled="False"
+                        Click="OnCancelClicked" />
+            </StackPanel>
+
+            <!-- 进度 -->
+            <StackPanel Grid.Row="3" Spacing="8" Margin="0,18,0,0">
+                <!-- 注意不要命名为 ProgressBar：那会遮蔽同名的控件类型 -->
+                <ProgressBar x:Name="Progress" />
+                <TextBlock x:Name="StatusText"
+                           Style="{StaticResource CaptionTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Text="就绪"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+
+            <!-- 日志 -->
+            <TextBlock Grid.Row="4"
+                       Text="日志"
+                       Margin="0,18,0,6"
+                       Style="{StaticResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+            <Border Grid.Row="5"
+                    CornerRadius="8"
+                    BorderThickness="1"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                <ListView x:Name="LogList"
+                          Padding="4"
+                          SelectionMode="None"
+                          IsItemClickEnabled="False">
+                    <!-- 长路径要能折行，否则同样会把日志区撑宽 -->
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <TextBlock Text="{x:Bind}" TextWrapping="Wrap" />
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Border>
+        </Grid>
     </Grid>
 </Window>
