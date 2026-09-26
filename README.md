@@ -1,15 +1,68 @@
 # ShittimLogon Updater
 
-一个独立的 Windows C++ 更新器：**从指定地址下载压缩包 → 自动解压 → 运行压缩包中的 `install.exe`**。
+一个独立的 Windows 更新器：**从指定地址下载压缩包 → 自动解压 → 运行压缩包中的 `install.exe`**。
 
-包含两个可独立分发的 `.exe`：
+提供两个版本，功能完全等价，按部署环境选择：
 
-- **`ShittimLogonUpdater.exe`**（客户端）—— 获取压缩包、解压、运行安装程序。
-- **`ShittimLogonSender.exe`**（发送端）—— 可选的 TCP 文件服务，让客户端在**没有 HTTP 服务**
-  的环境下点对点拉取文件。
+| 版本 | 图形界面 | 运行时依赖 | 适用场景 |
+| --- | --- | --- | --- |
+| **`.NET` 客户端**（`client/`） | ✅ WinForms | .NET Framework 4.8（Windows 自带） | **推荐**，双击即用 |
+| **C++ 客户端**（`src/`） | 控制台 | 无（静态链接运行时） | 无 .NET 环境 / 脚本调用 |
 
-全部代码不依赖任何第三方库：HTTP 用 WinHTTP，解压用自研的 DEFLATE 实现，
-TCP 传输用 Winsock 加自定义应用层协议。
+另有 **`ShittimLogonSender.exe`**（发送端）—— 可选的 TCP 文件服务，让客户端在
+**没有 HTTP 服务**的环境下点对点拉取文件。
+
+C++ 版全部代码不依赖任何第三方库：HTTP 用 WinHTTP，解压用自研的 DEFLATE 实现，
+TCP 传输用 Winsock 加自定义应用层协议。`.NET` 版复用同一套 `SLU/1` 协议，
+实现见 `client/Updater.cs`。
+
+---
+
+## 图形界面客户端（.NET Framework 4.8 + WinForms）
+
+```text
+client\
+├── build.bat           编译脚本（双击即可）
+├── Crc32.cs            CRC-32，与 C++ 端位级一致
+├── Updater.cs          SLU/1 协议 + 下载 / 解压 / 运行
+├── MainForm.cs         界面
+├── Program.cs          入口
+└── app.manifest        DPI 感知 + Windows 10/11 兼容性
+```
+
+编译（产物在 `build\client\ShittimLogonUpdater.exe`）：
+
+```powershell
+client\build.bat
+```
+
+本机没有安装 .NET SDK，因此 `build.bat` 直接调用 VS BuildTools 自带的 Roslyn
+编译器（`MSBuild\Current\Bin\Roslyn\csc.exe`），引用程序集取自已安装的
+.NET Framework 4.8 运行时目录。
+
+界面预填默认地址，点「开始」即可；下载进度、解压与启动过程都实时写入日志框。
+
+### 为什么不用 WinUI 3
+
+本仓库早期实现过一版 WinUI 3（C++/WinRT、手工集成 Windows App SDK）客户端，
+**在本机无法正常工作**：窗口能创建、标题栏正常，但客户区始终空白。
+
+定位结论（`ui/` 目录为该版本，已废弃，仅作记录）：
+
+- `root.XamlRoot()` 恒为 `null` —— 内容从未接入 XAML 视觉树；
+- 布局管线完全不启动（`SizeChanged` 不触发、尺寸恒 `0×0`）；
+- 激活后约 250ms 抛 `E_FAIL`，此后 UI 线程挂死（连自己的 `DispatcherQueueTimer` 都不再触发），
+  表现为鼠标在窗体内显示忙碌光标。
+
+已经逐项排除的原因：`resources.pri` 缺失/未合并、PRI 文件名、框架依赖与自包含两种部署、
+WinUI DLL/XBF 版本、MRT Core 解析能力、主题、缺失资源键、XAML 元数据提供器、
+`XamlCheckProcessRequirements`、App 实例生命周期、显示适配器（禁用虚拟适配器后依旧）、
+免注册 WinRT 清单（exe 内嵌 1892 个 `activatableClass`）。
+
+关键对照：**改用 `DesktopWindowXamlSource`（XAML 岛）后 `XamlRoot` 能正常建立**，
+说明 XAML 核心与合成本身是好的，坏的只是 `Microsoft::UI::Xaml::Window` 这条承载路径。
+
+作为横向对照，**WinForms 一次即可正常渲染**，因此最终采用 .NET 方案。
 
 ---
 

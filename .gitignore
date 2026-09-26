@@ -25,3 +25,10 @@ CMakeSettings.json
 # 发布包：体积大，随发布渠道分发，不入库
 #（发送端默认分发的 ShittimLogon.zip 通常就放在它自己旁边）
 *.zip
+
+# Windows App SDK 依赖包（体积大，由 tools/fetch-windowsappsdk.ps1 按需拉取）
+packages/
+
+# 已废弃的 WinUI 3 客户端工程（本机无法正常渲染，改用 client/ 的 .NET 版）
+# 保留在本地作记录，但不纳入版本控制。详见 README。
+ui/
