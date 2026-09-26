@@ -52,7 +52,11 @@ rem
 rem  EnableMsixTooling is required for this (Windows App SDK's SingleFile.targets
 rem  insists on it so resources.pri can be embedded) -- it is set in the csproj.
 rem -------------------------------------------------------------------------
-set "SINGLE=%ROOT%\dist\ShittimLogonUpdater-single.exe"
+rem  Single-file build goes to the repository ROOT, not into dist\: it is one
+rem  file, and the root is where you actually look for it. The "-single" suffix
+rem  keeps it clear of the C++ build, which owns the plain ShittimLogonUpdater.exe
+rem  name. dist\winui-x64\ still holds the folder build.
+set "SINGLE=%ROOT%\ShittimLogonUpdater-single.exe"
 set "STAGE=%ROOT%\dist\_single-stage"
 
 if exist "%STAGE%" rmdir /s /q "%STAGE%"

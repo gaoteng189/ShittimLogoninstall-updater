@@ -37,7 +37,9 @@ if not exist "%OUT%" goto missing
 
 rem  Also produce a single-file build -- see client-winui\build.bat for the
 rem  full explanation of the trade-offs involved.
-set "SINGLE=%ROOT%\dist\ShittimLogonSender-single.exe"
+rem  Single-file build goes to the repository ROOT -- see client-winui\build.bat
+rem  for the reasoning.
+set "SINGLE=%ROOT%\ShittimLogonSender-single.exe"
 set "STAGE=%ROOT%\dist\_single-stage-sender"
 
 if exist "%STAGE%" rmdir /s /q "%STAGE%"

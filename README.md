@@ -6,7 +6,7 @@
 
 | 版本 | 产物 | 图形界面 | 运行时依赖 | 适用场景 |
 | --- | --- | --- | --- | --- |
-| **WinUI 3 客户端**（`client-winui/`） | `dist\winui-x64\` 目录 | ✅ 原生 Win11（Mica / 圆角 / 明暗跟随） | 无（运行时都在目录内） | **推荐** |
+| **WinUI 3 客户端**（`client-winui/`） | 根目录 `ShittimLogonUpdater-single.exe`，或 `dist\winui-x64\` 目录 | ✅ 原生 Win11（Mica / 圆角 / 明暗跟随） | 无（运行时都打进去了） | **推荐** |
 | **`.NET` 客户端**（`client/`） | `ShittimLogonUpdaterNet.exe` | WinForms | .NET Framework 4.8（Windows 自带） | 单文件、体积敏感 |
 | **C++ 客户端**（`src/`） | `ShittimLogonUpdater.exe` | 控制台 | 无（静态链接运行时） | 无 .NET 环境 / 脚本调用 |
 
@@ -18,7 +18,7 @@ WinUI 3 版与 WinForms 版的 `Updater.cs` 是同一份代码，只有界面层
 
 | 版本 | 产物 | 图形界面 | 适用场景 |
 | --- | --- | --- | --- |
-| **WinUI 3 发送端**（`sender-winui/`） | `dist\sender-x64\` 目录 | ✅ 原生 Win11 | **推荐** |
+| **WinUI 3 发送端**（`sender-winui/`） | 根目录 `ShittimLogonSender-single.exe`，或 `dist\sender-x64\` 目录 | ✅ 原生 Win11 | **推荐** |
 | **C++ 发送端**（`src/sender_main.cpp`） | `ShittimLogonSender.exe` | 控制台 | 无 .NET 环境 / 脚本调用 |
 
 C++ 版全部代码不依赖任何第三方库：HTTP 用 WinHTTP，解压用自研的 DEFLATE 实现，
@@ -50,11 +50,14 @@ client-winui\build.bat
 ```
 
 ```text
-dist\
-├── winui-x64\                        目录版：461 个文件 / 178.1 MB
-│   └── ShittimLogonUpdater.exe       客户端（当前版本 2.0.0.0）
-└── ShittimLogonUpdater-single.exe    单文件版：1 个文件 / 171.5 MB
+ShittimLogonUpdater-single.exe        单文件版：1 个文件 / 171.5 MB（直接放仓库根目录）
+
+dist\winui-x64\                       目录版：461 个文件 / 178.1 MB
+└── ShittimLogonUpdater.exe           客户端（当前版本 2.0.0.0）
 ```
+
+单文件版刻意输出到**仓库根目录**而不是 `dist\`：它就是一个文件，放根目录
+一眼就能看到，也方便直接拷走。
 
 ### 两种形态怎么选
 
@@ -144,10 +147,10 @@ sender-winui\build.bat
 ```
 
 ```text
-dist\
-├── sender-x64\                       目录版：460 个文件 / 178.1 MB
-│   └── ShittimLogonSender.exe
-└── ShittimLogonSender-single.exe     单文件版：1 个文件 / 171.5 MB
+ShittimLogonSender-single.exe         单文件版：1 个文件 / 171.5 MB（同样放根目录）
+
+dist\sender-x64\                      目录版：460 个文件 / 178.1 MB
+└── ShittimLogonSender.exe
 ```
 
 发送端尤其适合单文件形态 —— 它本来就是拷到另一台机器上去跑的。
