@@ -2,25 +2,83 @@
 
 一个独立的 Windows 更新器：**从指定地址下载压缩包 → 自动解压 → 运行压缩包中的 `install.exe`**。
 
-提供两个版本，功能完全等价，按部署环境选择：
+提供三个版本，功能完全等价，按部署环境选择：
 
 | 版本 | 产物 | 图形界面 | 运行时依赖 | 适用场景 |
 | --- | --- | --- | --- | --- |
-| **`.NET` 客户端**（`client/`） | `ShittimLogonUpdaterNet.exe` | ✅ WinForms | .NET Framework 4.8（Windows 自带） | **推荐**，双击即用 |
+| **WinUI 3 客户端**（`client-winui/`） | `dist\winui-x64\` 目录 | ✅ 原生 Win11（Mica / 圆角 / 明暗跟随） | 无（运行时都在目录内） | **推荐** |
+| **`.NET` 客户端**（`client/`） | `ShittimLogonUpdaterNet.exe` | WinForms | .NET Framework 4.8（Windows 自带） | 单文件、体积敏感 |
 | **C++ 客户端**（`src/`） | `ShittimLogonUpdater.exe` | 控制台 | 无（静态链接运行时） | 无 .NET 环境 / 脚本调用 |
 
-两个客户端都编译到项目根目录，文件名不同所以可以并存。
+三个客户端共用同一套 `SLU/1` 协议：下载、解压、运行这三步的业务逻辑与界面完全解耦，
+WinUI 3 版与 WinForms 版的 `Updater.cs` 是同一份代码，只有界面层不同。
 
 另有 **`ShittimLogonSender.exe`**（发送端）—— 可选的 TCP 文件服务，让客户端在
 **没有 HTTP 服务**的环境下点对点拉取文件。
 
 C++ 版全部代码不依赖任何第三方库：HTTP 用 WinHTTP，解压用自研的 DEFLATE 实现，
-TCP 传输用 Winsock 加自定义应用层协议。`.NET` 版复用同一套 `SLU/1` 协议，
-实现见 `client/Updater.cs`。
+TCP 传输用 Winsock 加自定义应用层协议。
 
 ---
 
-## 图形界面客户端（.NET Framework 4.8 + WinForms）
+## WinUI 3 客户端（.NET 10 + Windows App SDK）—— 主推
+
+原生 Windows 11 界面：**Mica 云母背景、圆角窗口、跟随系统的明暗主题与强调色、
+自定义标题栏、内容入场过渡动画**。
+
+```text
+client-winui\
+├── ShittimLogonUpdater.csproj  项目文件（net10.0-windows + WinUI 3）
+├── build.bat                   编译脚本（双击即可，内部调 dotnet build）
+├── App.xaml / App.xaml.cs      应用入口
+├── MainWindow.xaml / .xaml.cs  界面
+├── AssemblyInfo.cs             产品名 / 版本 / 版权 / 平台声明
+├── Updater.cs                  SLU/1 协议 + 下载 / 解压 / 运行（与 WinForms 版同一份）
+├── Crc32.cs                    CRC-32，与 C++ 端位级一致
+└── app.manifest                DPI 感知 + Windows 10/11 兼容性
+```
+
+编译（产物在 `dist\winui-x64\`）：
+
+```powershell
+client-winui\build.bat
+```
+
+```text
+dist\winui-x64\
+├── ShittimLogonUpdater.exe     客户端（当前版本 2.0.0.0）
+└── ...                         约 460 个文件 / 178 MB，整体分发
+```
+
+### 为什么是「一个目录」而不是「一个 exe」
+
+采用**自包含**部署：`SelfContained=true` 把 .NET 10 运行时打进输出目录，
+`WindowsAppSDKSelfContained=true` 把 Windows App SDK 运行时也打进去。
+**目标机器不需要预装任何运行时。**
+
+这是刻意的取舍：更新器的职责就是在「什么都还没装」的机器上把东西装上去，
+它自己不该有前置依赖。代价是分发给用户时要**整个目录一起拷贝**。
+
+体积已做过一轮精简：Windows App SDK 2.x 的总包会把整套 AI 栈
+（`Microsoft.WindowsAppSDK.AI` / `.ML` / `Microsoft.Windows.AI.MachineLearning`）
+一并拉进来，在自包含产物里贡献 `onnxruntime.dll`（20.7 MB）+ `DirectML.dll`（17.8 MB）
+等约 50 MB —— 对一个下载解压安装包的更新器毫无用处。csproj 里已显式排除，
+详见文件内注释。
+
+### 构建依赖
+
+| 依赖 | 用途 |
+| --- | --- |
+| .NET SDK 10 | 提供 `dotnet build` 与 Roslyn 编译器 |
+| Windows App SDK | WinUI 3 本身（NuGet 自动还原，首次约 300 MB，之后进缓存） |
+
+两者都**只在编译时需要**，产物本身不依赖目标机器上的任何东西。
+
+---
+
+## .NET Framework 客户端（WinForms）—— 轻量备选
+
+单文件产物（17 KB），适合体积敏感或只需要一个 exe 的场景。
 
 ```text
 client\
@@ -69,27 +127,36 @@ dotnet build client\ShittimLogonUpdater.csproj -c Release
 
 界面预填默认地址，点「开始」即可；下载进度、解压与启动过程都实时写入日志框。
 
-### 为什么不用 WinUI 3
+### 更正：早期「WinUI 3 在本机不可用」的结论是错的
 
-本仓库早期实现过一版 WinUI 3（C++/WinRT、手工集成 Windows App SDK）客户端，
-**在本机无法正常工作**：窗口能创建、标题栏正常，但客户区始终空白。
+本仓库早期实现过一版 WinUI 3（C++/WinRT）客户端，窗口能创建、标题栏正常，
+但**客户区始终空白**。当时的结论是「这台机器跑不了 WinUI 3」，于是改用 WinForms。
+后来用 .NET 10 + 官方 NuGet 包重写，同一个 Windows App SDK 2.5.1 **一次就正常渲染**
+—— `XamlRoot` 正常建立、布局管线正常启动、4 个控件稳定运行、零异常。
 
-定位结论（该 WinUI 3 工程已连同依赖包一并删除，此处保留结论作为记录）：
+**所以当初坏掉的是「手工集成 Windows App SDK」的那套 MSBuild 配置，不是 WinUI 3，
+也不是这台机器。** 在没有 NuGet 的情况下接通 Windows App SDK，需要手工补上本该由包
+自动完成的一大堆工作：include/lib 搜索路径、`resources.pri` 的生成与三份 PRI 合并
+（WinUI / IXP / Foundation）、`Microsoft.WindowsAppRuntime.Bootstrap.dll` 的复制，
+以及免注册 WinRT 清单（exe 内嵌 1892 个 `activatableClass`）。
+
+当时的排查记录（保留作为教训）：
 
 - `root.XamlRoot()` 恒为 `null` —— 内容从未接入 XAML 视觉树；
 - 布局管线完全不启动（`SizeChanged` 不触发、尺寸恒 `0×0`）；
-- 激活后约 250ms 抛 `E_FAIL`，此后 UI 线程挂死（连自己的 `DispatcherQueueTimer` 都不再触发），
-  表现为鼠标在窗体内显示忙碌光标。
+- 激活后约 250ms 抛 `E_FAIL`，此后 UI 线程挂死（连自己的 `DispatcherQueueTimer`
+  都不再触发），表现为鼠标在窗体内显示忙碌光标；
+- 已逐项排除：PRI 缺失/未合并、PRI 文件名、框架依赖与自包含两种部署、WinUI DLL/XBF
+  版本、MRT Core 解析能力、主题、缺失资源键、XAML 元数据提供器、
+  `XamlCheckProcessRequirements`、App 实例生命周期、显示适配器、免注册 WinRT 清单。
 
-已经逐项排除的原因：`resources.pri` 缺失/未合并、PRI 文件名、框架依赖与自包含两种部署、
-WinUI DLL/XBF 版本、MRT Core 解析能力、主题、缺失资源键、XAML 元数据提供器、
-`XamlCheckProcessRequirements`、App 实例生命周期、显示适配器（禁用虚拟适配器后依旧）、
-免注册 WinRT 清单（exe 内嵌 1892 个 `activatableClass`）。
+最误导人的是当时那个「关键对照」：改用 `DesktopWindowXamlSource`（XAML 岛）后
+`XamlRoot` **能**正常建立，于是判断「XAML 核心是好的，坏的只是 `Window` 这条承载路径」。
+实际上那只说明合成本身没问题，真正的毛病始终在工程配置里。
 
-关键对照：**改用 `DesktopWindowXamlSource`（XAML 岛）后 `XamlRoot` 能正常建立**，
-说明 XAML 核心与合成本身是好的，坏的只是 `Microsoft::UI::Xaml::Window` 这条承载路径。
-
-作为横向对照，**WinForms 一次即可正常渲染**，因此最终采用 .NET 方案。
+**教训**：手工重现包管理器的工作，很容易漏掉某一环，而症状会指向完全错误的方向 ——
+当时一路怀疑运行时、系统、显卡。改用 `PackageReference` 引进 Windows App SDK 之后，
+这些全都成了包自己的事。
 
 ---
 

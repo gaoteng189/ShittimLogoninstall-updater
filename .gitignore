@@ -10,8 +10,11 @@ out/
 *.lib
 *.res
 
-# .NET SDK 的中间产物（client\obj\）
+# .NET SDK 的中间产物（client\obj\、client-winui\obj\）
 obj/
+
+# WinUI 3 自包含产物：含 .NET 与 Windows App SDK 运行时，约 180 MB / 460 个文件
+dist/
 
 # 编辑器 / IDE
 .vs/
