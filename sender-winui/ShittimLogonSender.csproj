@@ -31,6 +31,15 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <WindowsPackageType>None</WindowsPackageType>
 
+    <!--
+      单文件发布需要它：Windows App SDK 的 SingleFile.targets 会强制检查这一项，
+      缺了直接报错 "PublishSingleFile requires EnableMsixTooling for embedded
+      resources.pri generation"。开启后 PRI 资源会被嵌进 exe 而不是散落成
+      resources.pri 文件 —— 这正是单文件运行所必需的。
+      与 WindowsPackageType=None 并不冲突，这里只是借用它的 PRI 生成能力。
+    -->
+    <EnableMsixTooling>true</EnableMsixTooling>
+
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <ApplicationManifest>app.manifest</ApplicationManifest>
 

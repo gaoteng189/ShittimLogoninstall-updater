@@ -36,6 +36,16 @@
     <!-- Unpackaged：不打包成 MSIX，直接运行 exe -->
     <WindowsPackageType>None</WindowsPackageType>
 
+    <!--
+      单文件发布需要它：Windows App SDK 的 SingleFile.targets 会强制检查这一项，
+      缺了直接报错 "PublishSingleFile requires EnableMsixTooling for embedded
+      resources.pri generation"。开启后 PRI 资源会被嵌进 exe，而不是散落成
+      resources.pri 文件 —— 这正是单文件运行所必需的。
+      注意这与 WindowsPackageType=None 并不冲突：这里只是借用它的 PRI 生成能力，
+      并不会把应用变成 MSIX 包。
+    -->
+    <EnableMsixTooling>true</EnableMsixTooling>
+
     <!-- 版本与产品信息写在 AssemblyInfo.cs 里，别让 SDK 再生成一份 -->
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 

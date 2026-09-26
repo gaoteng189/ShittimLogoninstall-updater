@@ -39,10 +39,47 @@ if errorlevel 1 goto failed
 
 if not exist "%OUT%" goto missing
 
+rem -------------------------------------------------------------------------
+rem  Also produce a single-file build: one exe that unpacks itself on first run.
+rem
+rem  Same size as the folder build (actually a bit smaller), but far easier to
+rem  hand to someone -- they only need to copy one file.
+rem
+rem  Trade-off: the FIRST launch unpacks ~450 files to %%TEMP%%\.net\<name>\
+rem  and takes a while (Defender scans each file as it lands). After that the
+rem  cache is reused and it starts just as fast as the folder build.
+rem
+rem  EnableMsixTooling is required for this (Windows App SDK's SingleFile.targets
+rem  insists on it so resources.pri can be embedded) -- it is set in the csproj.
+rem -------------------------------------------------------------------------
+set "SINGLE=%ROOT%\dist\ShittimLogonUpdater-single.exe"
+set "STAGE=%ROOT%\dist\_single-stage"
+
+if exist "%STAGE%" rmdir /s /q "%STAGE%"
+
+dotnet publish "%HERE%ShittimLogonUpdater.csproj" -c Release -r win-x64 --self-contained ^
+    -o "%STAGE%" ^
+    -p:PublishSingleFile=true ^
+    -p:IncludeNativeLibrariesForSelfExtract=true ^
+    -p:PublishReadyToRun=false ^
+    --nologo -v minimal
+if errorlevel 1 goto failed
+
+if not exist "%STAGE%\ShittimLogonUpdater.exe" goto single_missing
+
+move /y "%STAGE%\ShittimLogonUpdater.exe" "%SINGLE%" >nul
+if exist "%STAGE%" rmdir /s /q "%STAGE%"
+
 echo.
 echo [OK] %OUT%
-echo      (self-contained folder -- copy the whole dist\winui-x64\ directory)
+echo      folder build -- copy the whole dist\winui-x64\ directory
+echo [OK] %SINGLE%
+echo      single-file build -- copy just this one file
 exit /b 0
+
+:single_missing
+echo [ERROR] Single-file publish produced no exe in %STAGE%
+exit /b 1
 
 :no_dotnet
 echo [ERROR] dotnet not found on PATH.

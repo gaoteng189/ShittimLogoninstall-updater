@@ -43,26 +43,66 @@ client-winui\
 └── app.manifest                DPI 感知 + Windows 10/11 兼容性
 ```
 
-编译（产物在 `dist\winui-x64\`）：
+编译（一次产出两种形态）：
 
 ```powershell
 client-winui\build.bat
 ```
 
 ```text
-dist\winui-x64\
-├── ShittimLogonUpdater.exe     客户端（当前版本 2.0.0.0）
-└── ...                         约 460 个文件 / 178 MB，整体分发
+dist\
+├── winui-x64\                        目录版：461 个文件 / 178.1 MB
+│   └── ShittimLogonUpdater.exe       客户端（当前版本 2.0.0.0）
+└── ShittimLogonUpdater-single.exe    单文件版：1 个文件 / 171.5 MB
 ```
 
-### 为什么是「一个目录」而不是「一个 exe」
+### 两种形态怎么选
 
-采用**自包含**部署：`SelfContained=true` 把 .NET 10 运行时打进输出目录，
+| | 目录版 | 单文件版 |
+| --- | --- | --- |
+| 分发 | 拷整个目录（461 个文件） | **只拷一个文件** |
+| 体积 | 178.1 MB | **171.5 MB** |
+| 首次启动 | 立即 | ~25 秒（自解压） |
+| 之后启动 | 0.8 秒 | **0.8 秒**（复用缓存） |
+| 适合 | 固定部署 | 拷 U 盘 / 传给他人 |
+
+单文件版把整个运行时打进一个 exe，**首次运行**时自解压到
+`%TEMP%\.net\ShittimLogonUpdater\`（约 446 个文件）—— 那段时间主要花在
+Defender 逐个扫描新解压出来的 DLL 上；之后启动和目录版一样快。
+
+### 单文件是怎么做出来的
+
+```powershell
+dotnet publish -r win-x64 --self-contained `
+    -p:PublishSingleFile=true `
+    -p:IncludeNativeLibrariesForSelfExtract=true
+```
+
+关键是 csproj 里必须有这一项：
+
+```xml
+<EnableMsixTooling>true</EnableMsixTooling>
+```
+
+少写它会直接失败：
+
+```text
+error : PublishSingleFile requires EnableMsixTooling for embedded resources.pri generation
+```
+
+Windows App SDK 的 `SingleFile.targets` 强制要求这个开关，用来把 PRI 资源嵌进 exe
+（而不是散落成 `resources.pri` 文件）。它与 `WindowsPackageType=None` 并不冲突 ——
+这里只是借用它的 PRI 生成能力，不会把应用变成 MSIX 包。
+
+> 网上流传的「WinUI 3 不支持单文件发布」是过时说法。官方 targets 明确支持，
+> 只是有个 `EnableMsixTooling` 的前置条件。
+
+### 目标机器零依赖
+
+采用**自包含**部署：`SelfContained=true` 把 .NET 10 运行时打进产物，
 `WindowsAppSDKSelfContained=true` 把 Windows App SDK 运行时也打进去。
-**目标机器不需要预装任何运行时。**
-
-这是刻意的取舍：更新器的职责就是在「什么都还没装」的机器上把东西装上去，
-它自己不该有前置依赖。代价是分发给用户时要**整个目录一起拷贝**。
+**目标机器不需要预装任何运行时** —— 更新器的职责就是在「什么都还没装」的机器上
+把东西装上去，它自己不该有前置依赖。
 
 体积已做过一轮精简：Windows App SDK 2.x 的总包会把整套 AI 栈
 （`Microsoft.WindowsAppSDK.AI` / `.ML` / `Microsoft.Windows.AI.MachineLearning`）
@@ -97,11 +137,20 @@ sender-winui\
 └── app.manifest               DPI 感知 + Windows 10/11 兼容性
 ```
 
-编译（产物在 `dist\sender-x64\`，同样自包含）：
+编译（同样一次产出两种形态）：
 
 ```powershell
 sender-winui\build.bat
 ```
+
+```text
+dist\
+├── sender-x64\                       目录版：460 个文件 / 178.1 MB
+│   └── ShittimLogonSender.exe
+└── ShittimLogonSender-single.exe     单文件版：1 个文件 / 171.5 MB
+```
+
+发送端尤其适合单文件形态 —— 它本来就是拷到另一台机器上去跑的。
 
 ### 界面能做什么
 

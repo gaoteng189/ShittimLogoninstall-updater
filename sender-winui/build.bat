@@ -35,10 +35,36 @@ if errorlevel 1 goto failed
 
 if not exist "%OUT%" goto missing
 
+rem  Also produce a single-file build -- see client-winui\build.bat for the
+rem  full explanation of the trade-offs involved.
+set "SINGLE=%ROOT%\dist\ShittimLogonSender-single.exe"
+set "STAGE=%ROOT%\dist\_single-stage-sender"
+
+if exist "%STAGE%" rmdir /s /q "%STAGE%"
+
+dotnet publish "%HERE%ShittimLogonSender.csproj" -c Release -r win-x64 --self-contained ^
+    -o "%STAGE%" ^
+    -p:PublishSingleFile=true ^
+    -p:IncludeNativeLibrariesForSelfExtract=true ^
+    -p:PublishReadyToRun=false ^
+    --nologo -v minimal
+if errorlevel 1 goto failed
+
+if not exist "%STAGE%\ShittimLogonSender.exe" goto single_missing
+
+move /y "%STAGE%\ShittimLogonSender.exe" "%SINGLE%" >nul
+if exist "%STAGE%" rmdir /s /q "%STAGE%"
+
 echo.
 echo [OK] %OUT%
-echo      (self-contained folder -- copy the whole dist\sender-x64\ directory)
+echo      folder build -- copy the whole dist\sender-x64\ directory
+echo [OK] %SINGLE%
+echo      single-file build -- copy just this one file
 exit /b 0
+
+:single_missing
+echo [ERROR] Single-file publish produced no exe in %STAGE%
+exit /b 1
 
 :no_dotnet
 echo [ERROR] dotnet not found on PATH.
