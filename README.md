@@ -24,7 +24,8 @@ TCP 传输用 Winsock 加自定义应用层协议。`.NET` 版复用同一套 `S
 
 ```text
 client\
-├── build.bat           编译脚本（双击即可）
+├── ShittimLogonUpdater.csproj   项目文件（net48 + WinExe）
+├── build.bat           编译脚本（双击即可，内部调 dotnet build）
 ├── AssemblyInfo.cs     产品名 / 版本 / 版权（写入 exe 的文件属性）
 ├── Crc32.cs            CRC-32，与 C++ 端位级一致
 ├── Updater.cs          SLU/1 协议 + 下载 / 解压 / 运行
@@ -43,12 +44,28 @@ client\build.bat
 ShittimLogonUpdaterNet.exe    客户端（当前版本 1.1.0.1）
 ```
 
-版本号写在 `client\AssemblyInfo.cs`，改完重新跑 `build.bat` 即可；「文件属性 →
-详细信息」里的产品名、描述与版权同样来自该文件。
+等价于：
 
-本机没有安装 .NET SDK，因此 `build.bat` 直接调用 VS BuildTools 自带的 Roslyn
-编译器（`MSBuild\Current\Bin\Roslyn\csc.exe`），引用程序集取自已安装的
-.NET Framework 4.8 运行时目录。
+```powershell
+dotnet build client\ShittimLogonUpdater.csproj -c Release
+```
+
+版本号写在 `client\AssemblyInfo.cs`，改完重新编译即可；「文件属性 → 详细信息」
+里的产品名、描述与版权同样来自该文件。
+
+**目标框架刻意保持 `net48`**：Windows 10/11 自带 .NET Framework 4.8，目标机器
+无需安装任何运行时，双击即用。换成新版 .NET 就得要求目标机器预装桌面运行时，
+对「更新器」这种要在干净机器上跑的工具是倒退。
+
+构建依赖（两样都只在**编译时**需要，产物本身不依赖它们）：
+
+| 依赖 | 用途 |
+| --- | --- |
+| .NET SDK | 提供 `dotnet build` 与 Roslyn 编译器 |
+| .NET Framework 4.8 Developer Pack | 提供 net48 参考程序集（缺了会报找不到 `System.Windows.Forms`） |
+
+项目**不引用任何 NuGet 包**：参考程序集直接取自 Developer Pack，不需要
+`Microsoft.NETFramework.ReferenceAssemblies`。
 
 界面预填默认地址，点「开始」即可；下载进度、解压与启动过程都实时写入日志框。
 

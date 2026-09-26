@@ -64,7 +64,11 @@ std::wstring PercentDecode(const std::wstring& text) {
 
 // 非阻塞 connect + select，实现可控的连接超时。
 tcp::Socket ConnectWithTimeout(const ADDRINFOW* address, int timeoutMs, std::string& error) {
-    tcp::Socket socket(socket(address->ai_family, address->ai_socktype, address->ai_protocol));
+    // 不能写成 tcp::Socket socket(socket(...))：变量名 socket 会遮蔽同名 WinSock 函数，
+    // 新声明的名字在它自己的初始化器里就已可见，Clang 会把内层 socket(...) 当成调用该变量。
+    const SOCKET rawSocket =
+        ::socket(address->ai_family, address->ai_socktype, address->ai_protocol);
+    tcp::Socket socket(rawSocket);
     if (!socket.valid()) {
         error = "创建套接字失败：" + WideToUtf8(DescribeWsaError(WsaErrorCode()));
         return tcp::Socket();

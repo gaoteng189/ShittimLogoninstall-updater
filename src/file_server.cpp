@@ -402,8 +402,10 @@ bool RunFileServer(const FileServerOptions& options, const std::atomic<bool>& st
     tcp::Socket listener;
     for (ADDRINFOW* candidate = addresses.get(); candidate != nullptr;
          candidate = candidate->ai_next) {
-        tcp::Socket socket(socket(candidate->ai_family, candidate->ai_socktype,
-                                  candidate->ai_protocol));
+        // 同上：先用 ::socket 拿到原始句柄，避免变量名遮蔽同名 WinSock 函数。
+        const SOCKET rawSocket = ::socket(candidate->ai_family, candidate->ai_socktype,
+                                          candidate->ai_protocol);
+        tcp::Socket socket(rawSocket);
         if (!socket.valid()) {
             continue;
         }

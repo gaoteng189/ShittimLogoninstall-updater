@@ -10,6 +10,9 @@ out/
 *.lib
 *.res
 
+# .NET SDK 的中间产物（client\obj\）
+obj/
+
 # 编辑器 / IDE
 .vs/
 .vscode/

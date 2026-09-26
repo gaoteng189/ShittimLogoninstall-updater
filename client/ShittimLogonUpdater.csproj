@@ -1,0 +1,55 @@
+<!--
+  ShittimLogon 更新器 —— .NET Framework 4.8 + WinForms 客户端
+
+  为什么是 net48 而不是 net10.0-windows：
+  Windows 10/11 自带 .NET Framework 4.8，目标机器不需要安装任何运行时，双击即用。
+  换成新版 .NET 就得要求目标机器预装桌面运行时，对「更新器」这种要在干净机器上
+  跑的工具是倒退。
+
+  依赖：.NET Framework 4.8 Developer Pack（提供参考程序集）。
+  没有它编译会报「未能找到 System.Windows.Forms」之类的错误。
+  本项目不引用任何 NuGet 包。
+
+  产物：仓库根目录的 ShittimLogonUpdaterNet.exe —— 带 Net 后缀以区别于
+  C++ 控制台版的 ShittimLogonUpdater.exe，两者可以并存。
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>ShittimLogonUpdaterNet</AssemblyName>
+    <RootNamespace>ShittimLogonUpdater</RootNamespace>
+    <LangVersion>7.3</LangVersion>
+
+    <!-- 版本与产品信息写在 AssemblyInfo.cs 里，别让 SDK 再生成一份，否则特性会重复定义。 -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- 产物直接落到仓库根目录，不追加 Configuration / TargetFramework 子目录。 -->
+    <OutputPath>$(MSBuildThisFileDirectory)..\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+
+    <DebugType>none</DebugType>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
+    <!--
+      不要再生成 ShittimLogonUpdaterNet.exe.config。
+      它里面只有一句 supportedRuntime 声明，而 Win10/11 自带的 .NET Framework 只可能是
+      4.x（就地更新，不并存），这句声明不起作用；不带它程序照样启动。
+      关掉之后根目录就只有一个 exe，跟之前 csc 编译时的产物形态一致。
+    -->
+    <GenerateSupportedRuntime>false</GenerateSupportedRuntime>
+  </PropertyGroup>
+
+  <!-- SDK 风格项目针对 net48 不会自动引用这几项，需要显式列出。 -->
+  <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+  </ItemGroup>
+
+</Project>

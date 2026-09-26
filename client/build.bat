@@ -12,54 +12,53 @@ rem
 rem  Version info (product name, copyright, file version) comes from
 rem  AssemblyInfo.cs -- edit it there, not here.
 rem
-rem  This machine has no .NET SDK (C:\Program Files\dotnet contains only
-rem  host/shared, no sdk), so "dotnet build" is unavailable. Instead we invoke
-rem  the Roslyn compiler shipped with VS BuildTools and reference the
-rem  assemblies from the installed .NET Framework runtime.
+rem  Thin wrapper around "dotnet build": the project file carries the real
+rem  settings, this script only exists so the build stays one double-click
+rem  away and so a sane output language is forced (on a Chinese locale the
+rem  CLI sometimes emits doubled characters).
+rem
+rem  Requirements:
+rem    - .NET SDK                            (verified with 10.0.401)
+rem    - .NET Framework 4.8 Developer Pack   (supplies the net48 reference
+rem      assemblies; without it the compiler cannot find System.Windows.Forms)
 rem
 rem  NOTE: comments here are kept ASCII on purpose. cmd.exe reads .bat files
 rem  using the OEM code page, so non-ASCII comments can be mis-parsed into
-rem  bogus commands. Also note the goto-based flow instead of "if (...)"
-rem  blocks: expanding a variable that contains "(x86)" inside parentheses
-rem  breaks the parser.
+rem  bogus commands.
 rem
 rem  Usage: double-click it, or run  client\build.bat
 rem ---------------------------------------------------------------------------
-
-set "CSC=C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\Roslyn\csc.exe"
-if not exist "%CSC%" goto no_csc
 
 set "HERE=%~dp0"
 for %%I in ("%HERE%..") do set "ROOT=%%~fI"
 set "OUT=%ROOT%\ShittimLogonUpdaterNet.exe"
 
-"%CSC%" /nologo /target:winexe /platform:x64 /langversion:7.3 /codepage:65001 ^
-    /win32manifest:"%HERE%app.manifest" ^
-    /out:"%OUT%" ^
-    /reference:System.dll ^
-    /reference:System.Core.dll ^
-    /reference:System.Drawing.dll ^
-    /reference:System.Windows.Forms.dll ^
-    /reference:System.IO.Compression.dll ^
-    /reference:System.IO.Compression.FileSystem.dll ^
-    "%HERE%AssemblyInfo.cs" ^
-    "%HERE%Crc32.cs" ^
-    "%HERE%Updater.cs" ^
-    "%HERE%MainForm.cs" ^
-    "%HERE%Program.cs"
+where dotnet >nul 2>nul
+if errorlevel 1 goto no_dotnet
 
+rem Force English output: only the messages change, never the build result.
+set "DOTNET_CLI_UI_LANGUAGE=en"
+
+dotnet build "%HERE%ShittimLogonUpdater.csproj" -c Release --nologo -v minimal
 if errorlevel 1 goto failed
+
+if not exist "%OUT%" goto missing
 
 echo.
 echo [OK] %OUT%
 exit /b 0
 
-:no_csc
-echo [ERROR] Roslyn compiler not found:
-echo         %CSC%
+:no_dotnet
+echo [ERROR] dotnet not found on PATH.
+echo         Install the .NET SDK from https://aka.ms/dotnet/download
+exit /b 1
+
+:missing
+echo [ERROR] The build reported success but the expected output is missing:
+echo         %OUT%
 exit /b 1
 
 :failed
 echo.
-echo [ERROR] Compilation failed
+echo [ERROR] Build failed
 exit /b 1
