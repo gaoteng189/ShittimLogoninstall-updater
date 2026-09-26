@@ -1,0 +1,61 @@
+<!--
+  ShittimLogon 发送端 —— WinUI 3 / Windows App SDK（.NET 10）
+
+  界面对应 C++ 版的 ShittimLogonSender.exe（src/sender_main.cpp + src/file_server.cpp）：
+  监听 TCP 端口，把准备好的安装包分发给客户端。协议为 SLU/1，与客户端共用。
+
+  部署方式：自包含。
+    SelfContained=true                .NET 运行时打进输出目录
+    WindowsAppSDKSelfContained=true   Windows App SDK 运行时打进输出目录
+  发送端通常是拷到另一台机器去跑的，所以同样做成零依赖。
+
+  产物：dist\sender-x64\
+
+  构建：sender-winui\build.bat   或   dotnet build
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>ShittimLogonSender</RootNamespace>
+    <AssemblyName>ShittimLogonSender</AssemblyName>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <UseWinUI>true</UseWinUI>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+
+    <SelfContained>true</SelfContained>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <WindowsPackageType>None</WindowsPackageType>
+
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <OutputPath>$(MSBuildThisFileDirectory)..\dist\sender-x64\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+
+    <DebugType>none</DebugType>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <GenerateSupportedRuntime>false</GenerateSupportedRuntime>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+  </ItemGroup>
+
+  <!--
+    同 client-winui：Windows App SDK 2.x 的总包会把整套 AI 栈一并拉进来，
+    在自包含产物里贡献 onnxruntime.dll / DirectML.dll 等约 50 MB，发送端用不到，
+    显式排除。详见 client-winui 项目文件里的完整说明。
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" Version="2.5.5" ExcludeAssets="all" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" Version="2.1.94" ExcludeAssets="all" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" Version="2.1.74" ExcludeAssets="all" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>
