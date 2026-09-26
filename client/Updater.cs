@@ -233,8 +233,12 @@ namespace ShittimLogonUpdater
         }
 
         // -------------------------------------------------------------------
-        //  启动安装程序。UseShellExecute 让 shell 按 install.exe 自带的清单
-        //  决定是否需要弹 UAC 提权。
+        //  启动安装程序。
+        //
+        //  用 UseShellExecute 让 shell 按 install.exe 自带的清单决定是否需要 UAC。
+        //  注意：目标要求提权时，ShellExecute 会一直阻塞到用户对 UAC 对话框做出响应，
+        //  因此这里放到独立线程去启动 —— 否则调用方（工作线程）会卡住，
+        //  界面会一直停在「下载中 100%」而不是「完成」。
         // -------------------------------------------------------------------
         public static void Run(string exePath, string workingDirectory)
         {
@@ -244,8 +248,27 @@ namespace ShittimLogonUpdater
                 WorkingDirectory = workingDirectory,
                 UseShellExecute = true,
             };
-            Process.Start(startInfo);
+
+            var starter = new Thread(() =>
+            {
+                try
+                {
+                    Process.Start(startInfo);
+                }
+                catch (Exception error)
+                {
+                    LogHook(string.Format("启动安装程序失败：{0}", error.Message));
+                }
+            })
+            {
+                IsBackground = true,
+                Name = "LaunchPayload",
+            };
+            starter.Start();
         }
+
+        /// <summary>启动阶段的失败信息出口（由 RunAll 注入）。</summary>
+        internal static Action<string> LogHook = _ => { };
 
         // -------------------------------------------------------------------
         //  完整流程：连接 -> 下载 -> 解压 -> 运行
@@ -282,9 +305,10 @@ namespace ShittimLogonUpdater
                     "压缩包内找不到 " + Defaults.PayloadExe, Defaults.PayloadExe);
             }
 
+            LogHook = onLog;
             onLog("启动 " + exePath);
             Run(exePath, Path.GetDirectoryName(exePath));
-            onLog("已启动安装程序");
+            onLog("已启动安装程序（若系统弹出 UAC 提示，请确认）");
         }
 
         // -------------------------------------------------------------------
